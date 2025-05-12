@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 
 // --- モデル・アニメーション関連 ---
-export const MAZE_MODEL_PATH = './models/debug_map01.glb'; // 迷路の3Dモデルファイルのパス。変更すると読み込まれる迷路が変わります。
+export const MAZE_MODEL_PATH = './models/debug_map02.glb'; // 迷路の3Dモデルファイルのパス。変更すると読み込まれる迷路が変わります。
 export const CHARACTER_BASE_MODEL_PATH = './models/idle.fbx'; // キャラクターの基本（アイドル状態などのベース）モデルファイルのパス。
 export const ANIMATION_PATHS = { // キャラクターのアニメーションファイルパス。各動作のアニメーションを変更します。
     idle: './models/idle.fbx',    // アイドル状態のアニメーション
