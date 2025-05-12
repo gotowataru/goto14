@@ -27,15 +27,63 @@ export class Minimap {
         this.camera.layers.enableAll(); // ミニマップカメラは全レイヤーを描画
     }
 
-    _initCharacterIndicator() {
-        const indicatorGeo = new THREE.ConeGeometry(MINIMAP_INDICATOR_SIZE, MINIMAP_INDICATOR_SIZE * 1.5, 4);
-        indicatorGeo.translate(0, MINIMAP_INDICATOR_SIZE * 0.75, 0);
-        indicatorGeo.rotateX(Math.PI / 2);
-        const indicatorMat = new THREE.MeshBasicMaterial({ color: 0xff0000, depthTest: false, toneMapped: false });
-        this.characterIndicator = new THREE.Mesh(indicatorGeo, indicatorMat);
-        this.scene.add(this.characterIndicator);
-        this.characterIndicator.layers.set(1); // ミニマップ専用レイヤー
-    }
+_initCharacterIndicator() {
+    const arrowShape = new THREE.Shape();
+
+    // 矢印の頂点を定義 (例: 上向きの矢印)
+    // サイズは MINIMAP_INDICATOR_SIZE を基準に調整
+    const s = MINIMAP_INDICATOR_SIZE; // 基本サイズ
+
+    // 矢印の先端
+    arrowShape.moveTo(0, s); // (x, y)
+    // 右肩
+    arrowShape.lineTo(s * 0.5, 0);
+    // 右くびれ
+    arrowShape.lineTo(s * 0.25, 0);
+    // 右下
+    arrowShape.lineTo(s * 0.25, -s * 0.75);
+    // 左下
+    arrowShape.lineTo(-s * 0.25, -s * 0.75);
+    // 左くびれ
+    arrowShape.lineTo(-s * 0.25, 0);
+    // 左肩
+    arrowShape.lineTo(-s * 0.5, 0);
+    // 先端に戻る
+    arrowShape.lineTo(0, s);
+
+    // 2D形状からジオメトリを生成
+    // Option A: そのまま平面の矢印として使う
+    const indicatorGeo = new THREE.ShapeGeometry(arrowShape);
+
+    // Option B: 少し厚みを持たせる (ExtrudeGeometry)
+    /*
+    const extrudeSettings = {
+        steps: 1,
+        depth: s * 0.2, // 厚み
+        bevelEnabled: false
+    };
+    const indicatorGeo = new THREE.ExtrudeGeometry(arrowShape, extrudeSettings);
+    */
+
+    // ジオメトリの向きを調整 (X軸で90度回転してXY平面からXZ平面にする)
+    indicatorGeo.rotateX(-Math.PI / 2); // 上から見たときにXY平面で作った形状が見えるように
+    // 必要に応じて、さらにY軸周りの回転で初期の向きを調整
+    indicatorGeo.rotateY(Math.PI); // 例: 初期で下向きにするなど
+
+    const indicatorMat = new THREE.MeshBasicMaterial({
+        color: 0x00FF00,       // 赤色
+        side: THREE.DoubleSide, // PlaneGeometry や ShapeGeometry を使う場合、両面表示が良い
+        depthTest: false,
+        toneMapped: false
+    });
+
+    this.characterIndicator = new THREE.Mesh(indicatorGeo, indicatorMat);
+
+    // シーンに追加し、レイヤーを設定
+    this.scene.add(this.characterIndicator);
+    this.characterIndicator.layers.set(1); // ミニマップ専用レイヤー
+    console.log("Minimap: Arrow indicator initialized.");
+}
 
     setupMinimapCameraView(mazeModel, mazeFloorRef) { // mazeFloorRef を引数に追加
         if (!this.isEnabled || !mazeModel || !this.camera) return;
