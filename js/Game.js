@@ -1,4 +1,4 @@
-// Game.js (エントリーポイント)
+// Game.js
 import * as THREE from 'three';
 // import { OrbitControls } from 'three/addons/controls/OrbitControls.js'; // CameraManager内でimport
 
@@ -21,6 +21,8 @@ import { // 定数をインポート
     NUM_SPHERES, MAZE_SCALE, MINIMAP_ENABLED,
     MINIMAP_INDICATOR_Y_OFFSET,
     NUM_RAMIELS, RAMIEL_COLOR,RAMIEL_SIZE, // ラミエル追加
+    AUDIO_BGM_PATH, AUDIO_BGM_VOLUME, AUDIO_BGM_LOOP,
+    AUDIO_SFX_BEAM_PATH, AUDIO_SFX_BEAM_VOLUME, AUDIO_SFX_BEAM_LOOP,
 } from './constants.js';
 
 
@@ -58,17 +60,20 @@ class Game {
         this.character = null; // アセットロード後に初期化
         this.minimap = MINIMAP_ENABLED ? new Minimap(this.scene, this.renderer) : null;
 
+        // --- DOM要素の取得 (音量調整UI用) ---
+        this.bgmVolumeSlider = document.getElementById('bgm-volume');
+        this.bgmVolumeValueElement = document.getElementById('bgm-volume-value');
+        this.sfxVolumeSlider = document.getElementById('sfx-volume');
+        this.sfxVolumeValueElement = document.getElementById('sfx-volume-value');
+
         // --- オーディオ関連のプロパティ ---
         this.audioListener = new THREE.AudioListener();
         this.audioLoader = new THREE.AudioLoader();
         this.bgmSound = null;
-        this.bgmPath = './audio/mikumiku.mp3';
-        this.bgmVolume = 0.02;
         this.bgmLoaded = false;
         this.bgmPlayInitiated = false; // BGMが再生開始されたかのフラグ (初回のみ再生用)
+
         this.sfxBeamSound = null;
-        this.sfxBeamPath = './audio/beam_01.mp3';
-        this.sfxBeamVolume = 0.04;
         this.sfxBeamLoaded = false;
     }
 
@@ -82,6 +87,9 @@ class Game {
 
     async init() {
         try {
+            // --- 音量コントロールのセットアップを呼び出し ---
+            this._setupAudioControls(); 
+
             // --- 1. 物理エンジン関連の初期化 ---
             if (this.loadingMessageElement) this.loadingMessageElement.textContent = '物理エンジンを初期化中...';
             await this.physicsManager.initAmmo();
@@ -106,12 +114,12 @@ class Game {
 
                 if (this.loadingMessageElement) this.loadingMessageElement.textContent = 'BGMを読み込み中...';
                 this.audioLoader.load(
-                    this.bgmPath,
+                    AUDIO_BGM_PATH,
                     (buffer) => {
                         this.bgmSound = new THREE.Audio(this.audioListener);
                         this.bgmSound.setBuffer(buffer);
-                        this.bgmSound.setLoop(true);
-                        this.bgmSound.setVolume(this.bgmVolume);
+                        this.bgmSound.setLoop(AUDIO_BGM_LOOP);
+                        this.bgmSound.setVolume(AUDIO_BGM_VOLUME);
                         this.bgmLoaded = true;
                         console.log('BGM loaded successfully.');
                         if (this.loadingMessageElement && this.loadingMessageElement.textContent.includes('BGM')) {
@@ -132,12 +140,12 @@ class Game {
 
                 if (this.loadingMessageElement) this.loadingMessageElement.textContent = '効果音を読み込み中...';
                 this.audioLoader.load(
-                    this.sfxBeamPath,
+                    AUDIO_SFX_BEAM_PATH,
                     (buffer) => {
                         this.sfxBeamSound = new THREE.Audio(this.audioListener);
                         this.sfxBeamSound.setBuffer(buffer);
-                        this.sfxBeamSound.setLoop(false);
-                        this.sfxBeamSound.setVolume(this.sfxBeamVolume);
+                        this.sfxBeamSound.setLoop(AUDIO_SFX_BEAM_LOOP);
+                        this.sfxBeamSound.setVolume(AUDIO_SFX_BEAM_VOLUME);
                         this.sfxBeamLoaded = true;
                         console.log('SFX (beam) loaded successfully.');
                         // 両方のオーディオロードが終わったタイミングでロードメッセージを最終更新しても良い
@@ -179,6 +187,55 @@ class Game {
             }
         }
     }
+
+
+    // --- ▼▼▼ 音量調整UIのセットアップとイベントリスナー設定用メソッド ▼▼▼ ---
+    _setupAudioControls() {
+        if (!this.bgmVolumeSlider || !this.bgmVolumeValueElement || !this.sfxVolumeSlider || !this.sfxVolumeValueElement) {
+            console.warn("音量調整UIの要素が見つかりません。");
+            return;
+        }
+
+        // BGMボリュームスライダーの初期設定
+        this.bgmVolumeSlider.value = AUDIO_BGM_VOLUME;
+        this.bgmVolumeValueElement.textContent = `${Math.round(AUDIO_BGM_VOLUME * 100)}%`;
+        this.bgmVolumeSlider.addEventListener('input', (event) => {
+            const volume = parseFloat(event.target.value);
+            if (this.bgmSound) {
+                this.bgmSound.setVolume(volume);
+            }
+            this.bgmVolumeValueElement.textContent = `${Math.round(volume * 100)}%`;
+        });
+
+        // 効果音ボリュームスライダーの初期設定
+        this.sfxVolumeSlider.value = AUDIO_SFX_BEAM_VOLUME;
+        this.sfxVolumeValueElement.textContent = `${Math.round(AUDIO_SFX_BEAM_VOLUME * 100)}%`;
+        this.sfxVolumeSlider.addEventListener('input', (event) => {
+            const volume = parseFloat(event.target.value);
+            // sfxBeamSound は再生時にボリュームが適用されることが多いが、
+            // ここで設定しておけば、次回再生時からこのボリュームになる。
+            // もし即時反映させたいなら、現在再生中の効果音インスタンスのボリュームも変更する必要があるが、
+            // THREE.Audioでは個別の再生インスタンスのボリューム変更は難しい。
+            // この場合、AUDIO_SFX_BEAM_VOLUME のような定数を更新し、
+            // sfxBeamSound.play() の直前に setVolume するか、
+            // sfxBeamSound 自体のデフォルトボリュームとして設定する。
+            // 今回は sfxBeamSound のデフォルトボリュームを変更する方針で。
+            if (this.sfxBeamSound) {
+                this.sfxBeamSound.setVolume(volume);
+            }
+            this.sfxVolumeValueElement.textContent = `${Math.round(volume * 100)}%`;
+        });
+
+        console.log("音量調整UIがセットアップされました。");
+    }
+    // --- ▲▲▲ 音量調整UIのセットアップとイベントリスナー設定用メソッド ▲▲▲ ---
+
+
+
+
+
+
+
 
     _handleStartKey(event) {
         if (event.key === 'Enter') {

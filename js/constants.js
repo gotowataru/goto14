@@ -3,19 +3,19 @@
 import * as THREE from 'three';
 
 // --- モデル・アニメーション関連 ---
-export const MAZE_MODEL_PATH = './models/debug_map02.glb'; // 迷路の3Dモデルファイルのパス。変更すると読み込まれる迷路が変わります。
-export const CHARACTER_BASE_MODEL_PATH = './models/idle.fbx'; // キャラクターの基本（アイドル状態などのベース）モデルファイルのパス。idle.fbx
+export const MAZE_MODEL_PATH = './models/debug_map05.glb'; // 迷路の3Dモデルファイルのパス。変更すると読み込まれる迷路が変わります。
+export const CHARACTER_BASE_MODEL_PATH = './models/Idle.fbx'; // キャラクターの基本（アイドル状態などのベース）モデルファイルのパス。
 export const ANIMATION_PATHS = { // キャラクターのアニメーションファイルパス。各動作のアニメーションを変更します。
-    idle: './models/idle.fbx',    // アイドル状態のアニメーション
-    run: './models/test_run1.fbx',   // 走行状態のアニメーション
+    idle: './models/Idle.fbx',    // アイドル状態のアニメーション
+    run: './models/run_03.fbx',   // 走行状態のアニメーション run_03
     kick: './models/kick_01.fbx'  // キック動作のアニメーション
     //, jump: './models/jump_01.fbx' // ジャンプは削除済みなのでこのまま
 };
 
 // --- キャラクター基本設定 ---
-export const CHARACTER_INITIAL_POSITION = new THREE.Vector3(0, 0, 0); // キャラクターの初期位置 (x, y, z)。ゲーム開始時のキャラクターのスポーン地点。一時的にコメントアウト
+export const CHARACTER_INITIAL_POSITION = new THREE.Vector3(0, 0, 0); // キャラクターの初期位置 (x, y, z)。ゲーム開始時のキャラクターのスポーン地点。
 
-export const CHARACTER_INITIAL_SCALE = 1; // キャラクターモデルの初期スケール。値を変更するとキャラクターのサイズが変わります。物理演算にも影響。
+export const CHARACTER_INITIAL_SCALE = 30; // キャラクターモデルの初期スケール。値を変更するとキャラクターのサイズが変わります。物理演算にも影響。
 export const CHARACTER_SPEED = 200.0; // キャラクターの移動速度。大きいほど速く移動します。現在180
 export const CHARACTER_ROTATION_SPEED = Math.PI; // キャラクターの回転速度 (ラジアン/秒)。大きいほど旋回が速くなります。 (Math.PI = 180度/秒)
 export const BASE_CHARACTER_HEIGHT = 1.8; // キャラクターモデルの基準身長（スケール1の時の身長）。CHARACTER_HEIGHTの計算に使用。
@@ -115,3 +115,11 @@ export const RAMIEL_CROSS_FADE_IN_DURATION = 0.2;   // フェードイン時間 
 export const RAMIEL_CROSS_FADE_OUT_DURATION = 0.3;  // フェードアウト時間 (秒)
 export const RAMIEL_CROSS_Y_OFFSET = RAMIEL_CROSS_HEIGHT / 2; // 地面からのオフセット（中心を地面に合わせるため）
 
+// --- オーディオ設定 ---
+export const AUDIO_BGM_PATH = './audio/mikumiku.mp3';      // BGMのファイルパス
+export const AUDIO_BGM_VOLUME = 0.02;                     // BGMのボリューム
+export const AUDIO_BGM_LOOP = true;                       // BGMをループ再生するか
+
+export const AUDIO_SFX_BEAM_PATH = './audio/beam_01.mp3'; // ビーム効果音のファイルパス
+export const AUDIO_SFX_BEAM_VOLUME = 0.04;                // ビーム効果音のボリューム
+export const AUDIO_SFX_BEAM_LOOP = false;                 // ビーム効果音をループ再生するか
