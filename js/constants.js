@@ -4,9 +4,9 @@ import * as THREE from 'three';
 
 // --- モデル・アニメーション関連 ---
 export const MAZE_MODEL_PATH = './models/debug_map02.glb'; // 迷路の3Dモデルファイルのパス。変更すると読み込まれる迷路が変わります。
-export const CHARACTER_BASE_MODEL_PATH = './models/Idle.fbx'; // キャラクターの基本（アイドル状態などのベース）モデルファイルのパス。
+export const CHARACTER_BASE_MODEL_PATH = './models/idle.fbx'; // キャラクターの基本（アイドル状態などのベース）モデルファイルのパス。
 export const ANIMATION_PATHS = { // キャラクターのアニメーションファイルパス。各動作のアニメーションを変更します。
-    idle: './models/Idle.fbx',    // アイドル状態のアニメーション
+    idle: './models/idle.fbx',    // アイドル状態のアニメーション
     run: './models/test_run1.fbx',   // 走行状態のアニメーション run_03
     kick: './models/kick_01.fbx'  // キック動作のアニメーション
     //, jump: './models/jump_01.fbx' // ジャンプは削除済みなのでこのまま
