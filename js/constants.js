@@ -4,10 +4,10 @@ import * as THREE from 'three';
 
 // --- モデル・アニメーション関連 ---
 export const MAZE_MODEL_PATH = './models/debug_map02.glb'; // 迷路の3Dモデルファイルのパス。変更すると読み込まれる迷路が変わります。
-export const CHARACTER_BASE_MODEL_PATH = './models/idle.fbx'; // キャラクターの基本（アイドル状態などのベース）モデルファイルのパス。
+export const CHARACTER_BASE_MODEL_PATH = './models/idle.fbx'; // キャラクターの基本（アイドル状態などのベース）モデルファイルのパス。idle.fbx
 export const ANIMATION_PATHS = { // キャラクターのアニメーションファイルパス。各動作のアニメーションを変更します。
     idle: './models/idle.fbx',    // アイドル状態のアニメーション
-    run: './models/run_03.fbx',   // 走行状態のアニメーション
+    run: './models/test_run1.fbx',   // 走行状態のアニメーション
     kick: './models/kick_01.fbx'  // キック動作のアニメーション
     //, jump: './models/jump_01.fbx' // ジャンプは削除済みなのでこのまま
 };
@@ -15,7 +15,7 @@ export const ANIMATION_PATHS = { // キャラクターのアニメーション�
 // --- キャラクター基本設定 ---
 export const CHARACTER_INITIAL_POSITION = new THREE.Vector3(0, 0, 0); // キャラクターの初期位置 (x, y, z)。ゲーム開始時のキャラクターのスポーン地点。一時的にコメントアウト
 
-export const CHARACTER_INITIAL_SCALE = 30; // キャラクターモデルの初期スケール。値を変更するとキャラクターのサイズが変わります。物理演算にも影響。
+export const CHARACTER_INITIAL_SCALE = 1; // キャラクターモデルの初期スケール。値を変更するとキャラクターのサイズが変わります。物理演算にも影響。
 export const CHARACTER_SPEED = 200.0; // キャラクターの移動速度。大きいほど速く移動します。現在180
 export const CHARACTER_ROTATION_SPEED = Math.PI; // キャラクターの回転速度 (ラジアン/秒)。大きいほど旋回が速くなります。 (Math.PI = 180度/秒)
 export const BASE_CHARACTER_HEIGHT = 1.8; // キャラクターモデルの基準身長（スケール1の時の身長）。CHARACTER_HEIGHTの計算に使用。
@@ -80,11 +80,38 @@ export const WALL_RESTITUTION = 0.5; // 壁の物理的な反発係数。
 
 
 // --- 球体 (Sphere) 設定 ---
-export const NUM_SPHERES = 100; // ゲーム内に生成する球体の数。
+export const NUM_SPHERES = 10; // ゲーム内に生成する球体の数。
 export const MIN_SPHERE_RADIUS = 5 * MAZE_SCALE; // 生成される球体の最小半径。
 export const MAX_SPHERE_RADIUS = 15 * MAZE_SCALE; // 生成される球体の最大半径。
 export const SPHERE_MASS = 10; // 球体の物理的な質量。
 export const SPHERE_FRICTION = 0.4; // 球体の物理的な摩擦係数。
 export const SPHERE_RESTITUTION = 0.6; // 球体の物理的な反発係数。
-export const SPHERE_INITIAL_Y_OFFSET = 300 * MAZE_SCALE; // 球体の初期配置時のY軸オフセット（床面からの高さ）。埋まらないように調整。
+export const SPHERE_INITIAL_Y_OFFSET = 50 * MAZE_SCALE; // 球体の初期配置時のY軸オフセット（床面からの高さ）。埋まらないように調整。
+
+// --- Ramiel (正八面体) 設定 ---
+export const NUM_RAMIELS = 5; // ゲーム内に生成するラミエルの数。
+export const RAMIEL_SIZE = 20 * MAZE_SCALE; // 生成されるラミエルの基本サイズ (OctahedronGeometryの半径に相当)。
+export const RAMIEL_CORE_RADIUS_FACTOR = 0.05; // ラミエルの中心核の半径（RAMIEL_SIZEに対する割合）。
+export const RAMIEL_COLOR = 0x1e90ff; // ラミエルの基本色 (青)。
+export const RAMIEL_CORE_COLOR = 0xff0000; // ラミエルの中心核の色 (赤)。
+export const RAMIEL_OPACITY = 0.95; // ラミエルの透明度 (0.0 - 1.0)。
+export const RAMIEL_METALNESS = 0.3; // ラミエルの金属っぽさ (0.0 - 1.0)。
+export const RAMIEL_ROUGHNESS = 0.1; // ラミエルの表面の粗さ (0.0 - 1.0)。
+export const RAMIEL_MASS = 20000; // ラミエルの物理的な質量。
+export const RAMIEL_FRICTION = 1.0; // ラミエルの物理的な摩擦係数。
+export const RAMIEL_RESTITUTION = 0.0001; // ラミエルの物理的な反発係数。
+export const RAMIEL_INITIAL_Y_OFFSET = 5 * MAZE_SCALE; // ラミエルの初期配置時のY軸オフセット。
+
+// --- Ramiel (正八面体)  破壊時 十字架エフェクト設定 ---
+export const RAMIEL_CROSS_EFFECT_ENABLED = true; // エフェクトの有効/無効
+export const RAMIEL_CROSS_HEIGHT = 40 * MAZE_SCALE; // 十字架の高さ
+export const RAMIEL_CROSS_ARM_LENGTH = 10 * MAZE_SCALE; // 十字架の横棒の全長
+export const RAMIEL_CROSS_THICKNESS = 0.5 * MAZE_SCALE;   // 十字架の太さ（厚み）
+export const RAMIEL_CROSS_COLOR = 0xff1f44;          // 十字架の色 (赤系の光)
+export const RAMIEL_CROSS_OPACITY = 0.7;             // 十字架の透明度
+export const RAMIEL_CROSS_EMISSIVE_INTENSITY = 5.0;  // 自己発光の強さ
+export const RAMIEL_CROSS_DURATION = 0.7;            // 表示時間 (秒)
+export const RAMIEL_CROSS_FADE_IN_DURATION = 0.2;   // フェードイン時間 (秒)
+export const RAMIEL_CROSS_FADE_OUT_DURATION = 0.3;  // フェードアウト時間 (秒)
+export const RAMIEL_CROSS_Y_OFFSET = RAMIEL_CROSS_HEIGHT / 2; // 地面からのオフセット（中心を地面に合わせるため）
 

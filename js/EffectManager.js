@@ -1,6 +1,14 @@
 // EffectManager.js
 import * as THREE from 'three';
-import { MAZE_SCALE } from './constants.js';
+import {
+    MAZE_SCALE,
+    // --- 十字架エフェクト用定数をインポート ---
+    RAMIEL_CROSS_EFFECT_ENABLED, RAMIEL_CROSS_HEIGHT, RAMIEL_CROSS_ARM_LENGTH,
+    RAMIEL_CROSS_THICKNESS, RAMIEL_CROSS_COLOR, RAMIEL_CROSS_OPACITY,
+    RAMIEL_CROSS_EMISSIVE_INTENSITY, RAMIEL_CROSS_DURATION,
+    RAMIEL_CROSS_FADE_IN_DURATION, RAMIEL_CROSS_FADE_OUT_DURATION,
+    RAMIEL_CROSS_Y_OFFSET
+} from './constants.js';
 
 // --- (壁衝突パーティクル用) ---
 const IMPACT_PARTICLE_COUNT = 150;
@@ -30,6 +38,10 @@ const DEBRIS_BOX_SIZE = 1.0 * (MAZE_SCALE || 1); // 立方体の一辺の長さ(
 const DEBRIS_GRAVITY = 9.8 * (MAZE_SCALE || 1) * 10;
 const DEBRIS_MAX_BOUNCES = 3;
 const DEBRIS_RESTITUTION = 0.4; // 反発係数
+
+
+
+
 
 export class EffectManager {
     constructor(scene) {
@@ -96,8 +108,8 @@ export class EffectManager {
     // 球体破壊時の火花エフェクト
     createSparkExplosion(position, color = 0xffdd88) {
 
-     console.log("EffectManager: createSparkExplosion called at", position); // ★ログ追加
-     console.log("EffectManager: createDebrisExplosion called at", position); // ★ログ追加
+     // console.log("EffectManager: createSparkExplosion called at", position);
+     // console.log("EffectManager: createDebrisExplosion called at", position);
 
         const geometry = new THREE.BufferGeometry();
         const vertices = [];
@@ -176,23 +188,109 @@ export class EffectManager {
         this.activeEffects.push(debrisGroup);
     }
 
+    // --- ここから十字架エフェクト生成メソッド ---
+    createRamielCrossExplosion(position) {
+
+        if (!RAMIEL_CROSS_EFFECT_ENABLED) {
+            console.log("[EffectManager] createRamielCrossExplosion: SKIPPED (RAMIEL_CROSS_EFFECT_ENABLED is false)"); // ★ログ追加
+            return;
+        }
+
+        console.log("[EffectManager] createRamielCrossExplosion: CALLED with position:", position.clone()); // ★ログ追加
+
+
+
+        // 十字架のジオメトリを作成
+        // 縦棒
+        const verticalBarGeometry = new THREE.BoxGeometry(RAMIEL_CROSS_THICKNESS, RAMIEL_CROSS_HEIGHT, RAMIEL_CROSS_THICKNESS);
+        // 横棒
+        const horizontalBarGeometry = new THREE.BoxGeometry(RAMIEL_CROSS_ARM_LENGTH, RAMIEL_CROSS_THICKNESS, RAMIEL_CROSS_THICKNESS);
+
+        // 十字架のマテリアル
+        const crossMaterial = new THREE.MeshBasicMaterial({ // または MeshStandardMaterial で emissive を使う
+            color: RAMIEL_CROSS_COLOR,
+            transparent: true,
+            opacity: 0, // 初期状態では透明 (フェードインのため)
+            side: THREE.DoubleSide, // 裏面も描画
+            // blending: THREE.AdditiveBlending, // 光っぽさを強調する場合
+        });
+        // もしMeshStandardMaterialを使うなら:
+        // const crossMaterial = new THREE.MeshStandardMaterial({
+        //     color: RAMIEL_CROSS_COLOR,
+        //     emissive: RAMIEL_CROSS_COLOR,
+        //     emissiveIntensity: RAMIEL_CROSS_EMISSIVE_INTENSITY,
+        //     transparent: true,
+        //     opacity: 0,
+        //     metalness: 0.0,
+        //     roughness: 0.8,
+        // });
+
+
+        const verticalBar = new THREE.Mesh(verticalBarGeometry, crossMaterial.clone()); // マテリアルは共有せずクローン
+        const horizontalBar = new THREE.Mesh(horizontalBarGeometry, crossMaterial.clone());
+
+        // 横棒を縦棒の適切な位置に配置 (例: 縦棒の上から1/3程度の位置)
+        horizontalBar.position.y = RAMIEL_CROSS_HEIGHT / 2 - RAMIEL_CROSS_HEIGHT / 3; // 中心からのオフセット
+
+        const crossGroup = new THREE.Group();
+        crossGroup.add(verticalBar);
+        crossGroup.add(horizontalBar);
+
+        // 十字架全体の位置を設定 (地面に根本が来るようにオフセット調整)
+        crossGroup.position.copy(position);
+        crossGroup.position.y += RAMIEL_CROSS_Y_OFFSET; // 地面から生えるように調整 (定数で定義)
+                                                       // (position が爆心地の地面であると仮定)
+
+
+        // ★★★ 生成されたオブジェクトの情報をログに出力 ★★★
+        console.log("[EffectManager] Cross Group CREATED. Initial world position:", crossGroup.getWorldPosition(new THREE.Vector3()));
+        console.log("[EffectManager] Cross Group Children (vertical, horizontal):", verticalBar, horizontalBar);
+        console.log("[EffectManager] Cross Group Material (example from verticalBar):", verticalBar.material);
+        // ★★★ここまでログ追加★★★
+
+
+
+
+
+        crossGroup.userData = {
+            type: 'ramiel_cross_explosion',
+            creationTime: performance.now(),
+            lifetime: RAMIEL_CROSS_DURATION,
+            fadeInDuration: RAMIEL_CROSS_FADE_IN_DURATION,
+            fadeOutDuration: RAMIEL_CROSS_FADE_OUT_DURATION,
+            verticalBar: verticalBar,       // 個別アクセス用
+            horizontalBar: horizontalBar    // 個別アクセス用
+        };
+
+        this.scene.add(crossGroup);
+        this.activeEffects.push(crossGroup);
+        // console.log("Ramiel Cross Explosion created at:", crossGroup.position);
+        console.log("[EffectManager] Cross Group ADDED to scene and activeEffects. Active effects count:", this.activeEffects.length); // ★ログ追加
+
+
+    }
+    // --- ここまで十字架エフェクト生成メソッド ---
+
+
+
 
     // 唯一の update メソッド
     update(delta) {
         const now = performance.now();
         for (let i = this.activeEffects.length - 1; i >= 0; i--) {
             const effect = this.activeEffects[i];
+            const effectUserData = effect.userData; // userDataを一度変数に入れると少し見やすくなります
 
-            if (effect.userData.type === 'impact_particle' || effect.userData.type === 'spark_particle') {
+            if (effectUserData.type === 'impact_particle' || effectUserData.type === 'spark_particle') {
                 // --- ポイントベースのパーティクル処理 (壁衝突、火花) ---
                 const positionsAttribute = effect.geometry.attributes.position;
-                if (!positionsAttribute) { // 安全策: ジオメトリが破棄済みなど
+                if (!positionsAttribute) {
                     this.activeEffects.splice(i, 1);
                     continue;
                 }
-                const velocities = effect.userData.velocities;
-                const startTimes = effect.userData.startTimes; // 各パーティクルの開始時間
-                const effectLifetime = effect.userData.lifetime; // エフェクトごとの寿命
+                const velocities = effectUserData.velocities;
+                const startTimes = effectUserData.startTimes;
+                const effectLifetime = effectUserData.lifetime;
                 let allParticlesInEffectExpired = true;
 
                 for (let j = 0; j < positionsAttribute.count; j++) {
@@ -209,67 +307,64 @@ export class EffectManager {
                             currentY + velocities[j].y * delta,
                             currentZ + velocities[j].z * delta
                         );
-                        if (effect.userData.type === 'impact_particle') { // 壁衝突のみ重力
+                        if (effectUserData.type === 'impact_particle') {
                             velocities[j].y -= IMPACT_GRAVITY_EFFECT * delta;
                         }
                     }
                 }
                 positionsAttribute.needsUpdate = true;
 
-                // エフェクト全体の寿命 (最初のパーティクルが生成されてから) で消去
-                if (allParticlesInEffectExpired || (now - effect.userData.creationTime) / 1000 > effectLifetime + 0.1) {
+                if (allParticlesInEffectExpired || (now - effectUserData.creationTime) / 1000 > effectLifetime + 0.1) {
                     this.scene.remove(effect);
                     if (effect.geometry) effect.geometry.dispose();
                     if (effect.material && effect.material.dispose && !this.isSharedMaterial(effect.material)) {
-                         // クローンしたマテリアルなら破棄
                         effect.material.dispose();
                     }
                     this.activeEffects.splice(i, 1);
                 }
 
-            } else if (effect.userData.type === 'debris_container') {
+            } else if (effectUserData.type === 'debris_container') {
                 // --- デブリグループの処理 ---
                 let activeDebrisCount = 0;
                 effect.children.forEach(debrisMesh => {
                     if (!debrisMesh.userData) return;
 
-                    const elapsedTime = (now - debrisMesh.userData.startTime) / 1000;
-                    if (elapsedTime < debrisMesh.userData.lifetime && debrisMesh.visible) {
+                    const debrisData = debrisMesh.userData;
+                    const elapsedTime = (now - debrisData.startTime) / 1000;
+
+                    if (elapsedTime < debrisData.lifetime && debrisMesh.visible) {
                         activeDebrisCount++;
-                        debrisMesh.position.addScaledVector(debrisMesh.userData.velocity, delta);
-                        debrisMesh.userData.velocity.y -= DEBRIS_GRAVITY * delta;
+                        debrisMesh.position.addScaledVector(debrisData.velocity, delta);
+                        debrisData.velocity.y -= DEBRIS_GRAVITY * delta;
 
-                        debrisMesh.rotation.x += debrisMesh.userData.angularVelocity.x * delta;
-                        debrisMesh.rotation.y += debrisMesh.userData.angularVelocity.y * delta;
-                        debrisMesh.rotation.z += debrisMesh.userData.angularVelocity.z * delta;
+                        debrisMesh.rotation.x += debrisData.angularVelocity.x * delta;
+                        debrisMesh.rotation.y += debrisData.angularVelocity.y * delta;
+                        debrisMesh.rotation.z += debrisData.angularVelocity.z * delta;
 
-                        const groundY = 0; // TODO: 地面の高さを適切に設定
-                        const debrisBottomY = debrisMesh.position.y - DEBRIS_BOX_SIZE / 2;
+                        const groundY = 0; // TODO: 地面の高さを適切に設定 (MazeFloorのYなどを使用)
+                        const debrisBottomY = debrisMesh.position.y - DEBRIS_BOX_SIZE / 2; // DEBRIS_BOX_SIZE は定数
 
-                        if (debrisBottomY <= groundY && debrisMesh.userData.velocity.y < 0) {
-                            if (debrisMesh.userData.bounces < debrisMesh.userData.maxBounces) {
+                        if (debrisBottomY <= groundY && debrisData.velocity.y < 0) {
+                            if (debrisData.bounces < debrisData.maxBounces) {
                                 debrisMesh.position.y = groundY + DEBRIS_BOX_SIZE / 2;
-                                debrisMesh.userData.velocity.y *= -debrisMesh.userData.restitution;
-                                debrisMesh.userData.velocity.x *= 0.8;
-                                debrisMesh.userData.velocity.z *= 0.8;
-                                debrisMesh.userData.angularVelocity.multiplyScalar(0.7);
-                                debrisMesh.userData.bounces++;
+                                debrisData.velocity.y *= -debrisData.restitution;
+                                debrisData.velocity.x *= 0.8;
+                                debrisData.velocity.z *= 0.8;
+                                debrisData.angularVelocity.multiplyScalar(0.7);
+                                debrisData.bounces++;
                             } else {
-                                // 最大バウンド後、静止（またはゆっくり消える）
-                                debrisMesh.userData.velocity.set(0, 0, 0);
-                                debrisMesh.userData.angularVelocity.set(0,0,0);
-                                debrisMesh.position.y = groundY + DEBRIS_BOX_SIZE / 2 * 0.5; // 少しめり込ませる
-                                // ここで slowlyFadeAndRemove(debrisMesh) みたいな関数を呼んでも良い
-                                debrisMesh.visible = false; // とりあえず非表示に
+                                debrisData.velocity.set(0, 0, 0);
+                                debrisData.angularVelocity.set(0,0,0);
+                                debrisMesh.position.y = groundY + DEBRIS_BOX_SIZE / 2 * 0.5;
+                                debrisMesh.visible = false;
                             }
                         }
                     } else {
-                        debrisMesh.visible = false; // 寿命が来たら非表示
+                        debrisMesh.visible = false;
                     }
                 });
 
-                // すべてのデブリが非表示（寿命切れ）になったらグループを削除
-                if (activeDebrisCount === 0 || (now - effect.userData.creationTime) / 1000 > DEBRIS_LIFETIME + 2.0) { // 念のためグループ全体のタイムアウト
+                if (activeDebrisCount === 0 || (now - effectUserData.creationTime) / 1000 > DEBRIS_LIFETIME + 2.0) {
                     effect.children.forEach(child => {
                         if (child.geometry) child.geometry.dispose();
                         if (child.material && child.material.dispose) child.material.dispose();
@@ -277,9 +372,71 @@ export class EffectManager {
                     this.scene.remove(effect);
                     this.activeEffects.splice(i, 1);
                 }
+
+            } else if (effectUserData.type === 'ramiel_cross_explosion') {
+                // --- Ramiel Cross の更新処理 ---
+                const data = effectUserData; // effectUserData は effect.userData と同じ
+                const elapsedTime = (now - data.creationTime) / 1000;
+                let currentOpacity = 0;
+
+                // ★★★ updateループに入っているかのログ (フレーム毎に出るので注意、確認後コメントアウト推奨) ★★★
+                // console.log(`[EffectManager] Updating Ramiel Cross: elapsedTime=${elapsedTime.toFixed(2)}s`);
+
+                if (elapsedTime < data.lifetime) {
+                    // フェードイン処理
+                    if (elapsedTime < data.fadeInDuration) {
+                        currentOpacity = RAMIEL_CROSS_OPACITY * (elapsedTime / data.fadeInDuration);
+                    }
+                    // 表示中 (フェードアウト開始前)
+                    else if (elapsedTime < data.lifetime - data.fadeOutDuration) {
+                        currentOpacity = RAMIEL_CROSS_OPACITY;
+                    }
+                    // フェードアウト処理
+                    else {
+                        const fadeOutElapsedTime = elapsedTime - (data.lifetime - data.fadeOutDuration);
+                        currentOpacity = RAMIEL_CROSS_OPACITY * (1.0 - fadeOutElapsedTime / data.fadeOutDuration);
+                    }
+                    currentOpacity = Math.max(0, Math.min(RAMIEL_CROSS_OPACITY, currentOpacity)); // 範囲内に収める
+
+                    // ★★★ 計算された透明度と、オブジェクトの可視性、ワールド座標のログ ★★★
+                    if (effect.children.length > 0 && effect.children[0].material) { // 最初の子供のマテリアルで代表
+                        console.log(`[EffectManager] Ramiel Cross Update: elapsedTime=${elapsedTime.toFixed(2)}, currentOpacity=${currentOpacity.toFixed(2)}, visible=${effect.visible}, worldPos.y=${effect.getWorldPosition(new THREE.Vector3()).y.toFixed(2)}`);
+                        if (currentOpacity > 0 && !effect.visible) {
+                            console.warn("[EffectManager] Ramiel Cross has opacity > 0 but effect.visible is false!");
+                        }
+                        if (currentOpacity === 0 && effect.visible && elapsedTime > data.fadeInDuration) {
+                             console.warn("[EffectManager] Ramiel Cross has opacity = 0 but effect.visible is true (after fade-in period).");
+                        }
+                    }
+                    // ★★★ここまでログ追加★★★
+
+                    // マテリアルの透明度を更新 (Group内の各メッシュに適用)
+                    // また、透明度がほぼ0ならオブジェクト自体を非表示にすることも検討
+                    const isEffectVisible = currentOpacity > 0.01; // 少し閾値を設ける
+                    effect.visible = isEffectVisible; // グループ全体の可視性を設定
+
+                    effect.children.forEach(childMesh => {
+                        if (childMesh.material) {
+                            childMesh.material.opacity = currentOpacity;
+                        }
+                        childMesh.visible = isEffectVisible; // 子要素の可視性も親に合わせる
+                    });
+
+                } else { // 寿命が尽きた
+                    console.log("[EffectManager] Ramiel Cross LIFETIME EXPIRED. Removing."); // ★ログ追加
+                    this.scene.remove(effect);
+                    // ジオメトリとマテリアルの解放 (Group内の各子要素に対して行う)
+                    effect.children.forEach(child => {
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material && child.material.dispose) child.material.dispose();
+                    });
+                    this.activeEffects.splice(i, 1);
+                }
             }
         }
     }
+
+
 
     // 共有マテリアルかどうかを判定するヘルパー（PointsMaterialはクローンしない前提なら不要）
     isSharedMaterial(material) {

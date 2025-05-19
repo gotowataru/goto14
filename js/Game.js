@@ -9,6 +9,7 @@ import { InputManager } from './InputManager.js';
 import { CameraManager } from './CameraManager.js'; 
 import { ProjectileManager } from './ProjectileManager.js';
 import { SphereManager } from './SphereManager.js';
+import { RamielManager } from './RamielManager.js'; // ラミエル追加
 import { Minimap } from './Minimap.js';
 import { EffectManager } from './EffectManager.js';
 
@@ -19,6 +20,7 @@ import { // 定数をインポート
     KICK_BEAM_DELAY, BEAM_SPAWN_OFFSET_FORWARD,
     NUM_SPHERES, MAZE_SCALE, MINIMAP_ENABLED,
     MINIMAP_INDICATOR_Y_OFFSET,
+    NUM_RAMIELS, RAMIEL_COLOR,RAMIEL_SIZE, // ラミエル追加
 } from './constants.js';
 
 
@@ -51,6 +53,7 @@ class Game {
         this.effectManager = new EffectManager(this.scene);
         this.projectileManager = new ProjectileManager(this.scene, () => this.raycastTargets, this.effectManager);
         this.sphereManager = new SphereManager(this.scene, this.physicsManager, this.raycastTargets);
+        this.ramielManager = new RamielManager(this.scene, this.physicsManager, this.raycastTargets); // ラミエル追加
 
         this.character = null; // アセットロード後に初期化
         this.minimap = MINIMAP_ENABLED ? new Minimap(this.scene, this.renderer) : null;
@@ -300,6 +303,7 @@ class Game {
         }
 
         this.sphereManager.createSpheres(NUM_SPHERES, this.world.mazeModel);
+        this.ramielManager.createRamiels(NUM_RAMIELS, this.world.mazeModel); // ラミエル追加
         this.cameraManager.setInitialCameraState(this.character.model); // character が null でないことを保証
 
         if (this.minimap) {
@@ -380,6 +384,9 @@ class Game {
         // 球の物理状態をモデルに同期
         this.sphereManager.syncAllSpheres(this.tempTransform);
 
+        // --- 追加 ラミエルの同期処理 ---
+        this.ramielManager.syncAllRamiels(this.tempTransform);
+
 
         // ビーム生成ロジック (character の存在チェックと kickActionStartTime のチェックを追加)
         if (this.character && this.character.currentActionName === 'kick' &&
@@ -428,6 +435,58 @@ class Game {
                     return "ignore";
                 }
             }
+
+            // --- ここから 追加ラミエルの衝突判定 ---
+            if (this.ramielManager.isRamiel(hitObject)) {
+                if (this.effectManager) {
+                    const ramielEffectPosition = hitObject.position.clone();
+
+
+                    // ★★★ hitObject の Y 座標を地面の高さに補正する ★★★
+                    // PhysicsManager から地面の高さを取得するか、
+                    // mazeFloorMaxY を使うなど、適切な地面の高さを設定する。
+                    // ここでは仮に mazeFloorMaxY を使用する (ramielEffectPositionが空中に浮いている場合を想定)
+                    // もし hitObject.position が既に地面に近いならこの補正は不要か、微調整。
+                    // 理想は、衝突点のy座標を使うか、ラミエルの足元のy座標を使う。
+                    // 今回はラミエルの中心位置のYから、ラミエルの高さの半分を引いて足元を出すイメージ。
+                    const ramielBodyHalfHeight = RAMIEL_SIZE * 0.707; // 物理ボディのサイズから（要調整）
+                    const groundPosition = new THREE.Vector3(
+                        ramielEffectPosition.x,
+                        // hitObject.position.y - ramielBodyHalfHeight, // ラミエルの足元想定
+                        this.world.mazeFloor ? this.world.mazeFloorMaxY : ramielEffectPosition.y - ramielBodyHalfHeight, // 床があるなら床のY、なければ計算
+                        ramielEffectPosition.z
+                    );
+
+
+
+
+
+                    const ramielBaseColor = new THREE.Color(RAMIEL_COLOR); // 定数から取得
+
+                    // 火花エフェクト (色はラミエルカラー、その他は球体と同じ設定)
+                    this.effectManager.createSparkExplosion(
+                        ramielEffectPosition,
+                        ramielBaseColor.clone().multiplyScalar(1.5) // 色を少し明るくするなどの調整は可能
+                    );
+
+                    // デブリエフェクト (色はラミエルカラー、その他は球体と同じ設定)
+                    this.effectManager.createDebrisExplosion(
+                        ramielEffectPosition, // createSparkExplosionでcloneしているので、再度cloneするか同じものを使う
+                        ramielBaseColor
+                    );
+
+                    // --- ここから十字架エフェクトの呼び出し ---
+                    this.effectManager.createRamielCrossExplosion(groundPosition); // 十字架は地面から
+
+                }
+                this.ramielManager.destroyRamielByMesh(hitObject);
+                return "destroy_target_and_continue";
+            }
+            // --- 追加ラミエルとの衝突判定 ---
+
+
+
+
             return "ignore";
         });
 

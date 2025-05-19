@@ -221,6 +221,93 @@ export class PhysicsManager {
         return body;
     }
 
+    /**
+     * 箱型の剛体を作成します。
+     * @param {THREE.Object3D} threeObject - 関連付けるThree.jsオブジェクト
+     * @param {THREE.Vector3} halfExtents - 箱の各辺の半分の長さ (中心からの距離)
+     * @param {number} mass - 質量 (0の場合は静的オブジェクト)
+     * @param {number} friction - 摩擦係数
+     * @param {number} restitution - 反発係数
+     * @param {boolean} [isKinematic=false] - キネマティックボディにするか
+     * @param {THREE.Vector3} [offset=new THREE.Vector3(0,0,0)] - Three.jsオブジェクトの中心と物理ボディの中心のオフセット
+     * @returns {Ammo.btRigidBody | null} 作成された Ammo.btRigidBody、または失敗した場合は null
+     */
+    createBoxPhysicsBody(threeObject, halfExtents, mass, friction, restitution, isKinematic = false, offset = new THREE.Vector3(0,0,0)) {
+        if (!this.AmmoAPI || !this.physicsWorld) {
+            console.error("PhysicsManager: AmmoAPIまたはPhysicsWorldが初期化されていません。Cannot create box physics body.");
+            return null;
+        }
+
+        // Three.jsオブジェクトのワールド座標と回転を取得
+        const worldPosition = new THREE.Vector3();
+        const worldQuaternion = new THREE.Quaternion();
+        threeObject.getWorldPosition(worldPosition);
+        threeObject.getWorldQuaternion(worldQuaternion);
+
+        // オフセットを適用
+        const physicsPosition = worldPosition.clone().add(offset);
+
+        const transform = new this.AmmoAPI.btTransform();
+        transform.setIdentity();
+        transform.setOrigin(new this.AmmoAPI.btVector3(physicsPosition.x, physicsPosition.y, physicsPosition.z));
+        transform.setRotation(new this.AmmoAPI.btQuaternion(worldQuaternion.x, worldQuaternion.y, worldQuaternion.z, worldQuaternion.w));
+
+        const motionState = new this.AmmoAPI.btDefaultMotionState(transform);
+
+        // 箱の形状を作成
+        const shape = new this.AmmoAPI.btBoxShape(new this.AmmoAPI.btVector3(halfExtents.x, halfExtents.y, halfExtents.z));
+        const collisionMargin = 0.05; // 適切な値を設定
+        shape.setMargin(collisionMargin);
+
+        const localInertia = new this.AmmoAPI.btVector3(0, 0, 0);
+        if (mass > 0 && !isKinematic) { // 動的ボディの場合のみ慣性を計算
+            shape.calculateLocalInertia(mass, localInertia);
+        }
+
+        const rbInfo = new this.AmmoAPI.btRigidBodyConstructionInfo(mass, motionState, shape, localInertia);
+        const body = new this.AmmoAPI.btRigidBody(rbInfo);
+
+        body.setFriction(friction);
+        body.setRestitution(restitution);
+
+        if (isKinematic) {
+            body.setCollisionFlags(body.getCollisionFlags() | 2); // CF_KINEMATIC_OBJECT
+            body.setActivationState(4); // DISABLE_DEACTIVATION (キネマティックボディは常にアクティブ)
+        } else if (mass === 0) { // 静的オブジェクトの場合
+            // 静的オブジェクトのフラグは addRigidBodyToWorld で設定されるか、
+            // ここで明示的に設定しても良い。createWallPhysicsBody を参考に。
+            // 現状の createWallPhysicsBody では CF_STATIC_OBJECT (フラグ値2) を設定しているので、
+            // ここでは質量0なら静的と見なすのが自然。
+            // ただし、キネマティックも質量0で定義されることがあるので、isKinematic を優先。
+            body.setCollisionFlags(body.getCollisionFlags() | 1); // CF_STATIC_OBJECT (Ammo.jsの定義による)
+                                                                // 通常はCF_STATIC_OBJECT = 1、CF_KINEMATIC_OBJECT = 2
+                                                                // createWallPhysicsBody では 2 (CF_STATIC_OBJECT) を使用している点に注意。
+                                                                // Ammo.jsのドキュメントや btCollisionObject.h を確認して正しいフラグを使う
+                                                                // 一般的には CF_STATIC_OBJECT は 1, KINEMATIC は 2
+                                                                // createWallPhysicsBodyのフラグ設定が CF_KINEMATIC_OBJECT になっている可能性があるので注意
+                                                                // → 確認したところ、あなたの createWallPhysicsBody は `body.setCollisionFlags(body.getCollisionFlags() | 2);` となっており、
+                                                                //   これは通常 `CF_KINEMATIC_OBJECT` です。静的な壁であれば `CF_STATIC_OBJECT` (通常は1) が適切です。
+                                                                //   ここでは、mass = 0 かつ isKinematic = false の場合に CF_STATIC_OBJECT を設定します。
+            if (!isKinematic) { // isKinematic でない質量0のオブジェクトは静的
+                 body.setCollisionFlags(body.getCollisionFlags() | 1); // CF_STATIC_OBJECT
+            }
+        }
+
+        // オプション: Three.jsオブジェクトを物理ボディに関連付ける (raycastなどで使用)
+        body.threeMesh = threeObject; // PhysicsManager.findMeshByBodyPtr で使うために直接参照を保持
+
+        this.addRigidBodyToWorld(body); // ワールドへの追加と管理リストへの登録
+
+        if (mass > 0 && !isKinematic) { // 動的オブジェクトのみアクティベーションを考慮
+             body.activate(); // スリープ状態になるのを防ぐため、初期状態でアクティブにする
+        }
+
+        console.log(`Box physics body created for ${threeObject.name || 'Unnamed Object'} with mass: ${mass}, kinematic: ${isKinematic}`);
+        return body;
+    }
+
+
+
     removeRigidBody(body) {
         if (this.physicsWorld && body && this.AmmoAPI) {
             const index = this.rigidBodies.indexOf(body);
