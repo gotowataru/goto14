@@ -7,7 +7,7 @@ export const MAZE_MODEL_PATH = './models/debug_map05.glb'; // 迷路の3Dモデ�
 export const CHARACTER_BASE_MODEL_PATH = './models/Idle.fbx'; // キャラクターの基本（アイドル状態などのベース）モデルファイルのパス。
 export const ANIMATION_PATHS = { // キャラクターのアニメーションファイルパス。各動作のアニメーションを変更します。
     idle: './models/Idle.fbx',    // アイドル状態のアニメーション
-    run: './models/run_03.fbx',   // 走行状態のアニメーション run_03
+    run: './models/test_run1.fbx',   // 走行状態のアニメーション run_03
     kick: './models/kick_01.fbx'  // キック動作のアニメーション
     //, jump: './models/jump_01.fbx' // ジャンプは削除済みなのでこのまま
 };
