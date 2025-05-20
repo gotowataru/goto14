@@ -140,7 +140,7 @@ export const SHADOW_CAMERA_SIZE = 700 * MAZE_SCALE; // 影が描画される範�
 
 // --- オーディオ設定 ---
 // BGM
-export const BGM_PATH = './audio/mikumiku.mp3';
+export const BGM_PATH = './audio/miku3.mp3';
 export const BGM_VOLUME = 0.02;
 export const BGM_LOOP = true;
 
