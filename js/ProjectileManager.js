@@ -45,8 +45,8 @@ export class ProjectileManager {
             .add(new THREE.Vector3(0, RING_SPAWN_OFFSET_UP, 0));
         ring.position.copy(ringPosition);
 
-        const rotateY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2); // Y軸回転で垂直に
-        const ringHoleDirWhenVertical = new THREE.Vector3(1, 0, 0); // 垂直にしたときの穴の向き (X+を向いていると仮定)
+        const rotateY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2); // リングを垂直。触るな
+        const ringHoleDirWhenVertical = new THREE.Vector3(1, 0, 0); // リングの穴を垂直。触るな
         const alignToForward = new THREE.Quaternion().setFromUnitVectors(ringHoleDirWhenVertical, forward);
         ring.quaternion.copy(rotateY).multiply(alignToForward);
 
@@ -65,7 +65,7 @@ export class ProjectileManager {
         forward.normalize();
 
         const characterPosition = characterModel.position.clone();
-        const beamSpawnHeight = charHeight * 0.5;
+        const beamSpawnHeight = charHeight * 0.8; // ビームの高さ
         const beamPosition = characterPosition.clone()
             .addScaledVector(forward, spawnOffsetFwd)
             .add(new THREE.Vector3(0, beamSpawnHeight, 0));

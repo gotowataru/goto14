@@ -1,4 +1,4 @@
-// Game.js
+// Game.js (エントリーポイント)
 import * as THREE from 'three';
 // import { OrbitControls } from 'three/addons/controls/OrbitControls.js'; // CameraManager内でimport
 
@@ -6,7 +6,7 @@ import { PhysicsManager } from './PhysicsManager.js';
 import { AssetLoader } from './AssetLoader.js';
 import { Character } from './Character.js';
 import { InputManager } from './InputManager.js';
-import { CameraManager } from './CameraManager.js'; 
+import { CameraManager } from './CameraManager.js';
 import { ProjectileManager } from './ProjectileManager.js';
 import { SphereManager } from './SphereManager.js';
 import { RamielManager } from './RamielManager.js'; // ラミエル追加
@@ -20,9 +20,17 @@ import { // 定数をインポート
     KICK_BEAM_DELAY, BEAM_SPAWN_OFFSET_FORWARD,
     NUM_SPHERES, MAZE_SCALE, MINIMAP_ENABLED,
     MINIMAP_INDICATOR_Y_OFFSET,
-    NUM_RAMIELS, RAMIEL_COLOR,RAMIEL_SIZE, // ラミエル追加
-    AUDIO_BGM_PATH, AUDIO_BGM_VOLUME, AUDIO_BGM_LOOP,
-    AUDIO_SFX_BEAM_PATH, AUDIO_SFX_BEAM_VOLUME, AUDIO_SFX_BEAM_LOOP,
+    NUM_RAMIELS, RAMIEL_COLOR,RAMIEL_SIZE,
+    // オーディオ関連の定数
+    BGM_PATH, BGM_VOLUME, BGM_LOOP,
+    SFX_BEAM_PATH, SFX_BEAM_VOLUME, SFX_BEAM_LOOP,
+    // 太陽の定数
+    SUN_ENABLED, SUN_POSITION, SUN_SIZE, SUN_COLOR,SUN_EMISSIVE_INTENSITY,
+    DIRECTIONAL_LIGHT_COLOR, DIRECTIONAL_LIGHT_INTENSITY,
+    DIRECTIONAL_LIGHT_CAST_SHADOW,
+    DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE_WIDTH, DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE_HEIGHT,
+    DIRECTIONAL_LIGHT_SHADOW_BIAS,
+    SHADOW_CAMERA_NEAR, SHADOW_CAMERA_FAR, SHADOW_CAMERA_SIZE,
 } from './constants.js';
 
 
@@ -46,6 +54,13 @@ class Game {
         // --- DOM要素の取得 ---
         this.startGameMessageElement = document.getElementById('start-game-message');
         this.loadingMessageElement = document.getElementById('loading-message');
+        // BGM ボリュームコントロール
+        this.bgmVolumeSlider = document.getElementById('bgm-volume-slider');
+        this.bgmVolumeValueSpan = document.getElementById('bgm-volume-value');
+        // SFX ボリュームコントロール
+        this.sfxVolumeSlider = document.getElementById('sfx-volume-slider');
+        this.sfxVolumeValueSpan = document.getElementById('sfx-volume-value');
+
 
         // --- 各マネージャーのインスタンス化 ---
         this.inputManager = new InputManager(this.renderer.domElement);
@@ -60,19 +75,12 @@ class Game {
         this.character = null; // アセットロード後に初期化
         this.minimap = MINIMAP_ENABLED ? new Minimap(this.scene, this.renderer) : null;
 
-        // --- DOM要素の取得 (音量調整UI用) ---
-        this.bgmVolumeSlider = document.getElementById('bgm-volume');
-        this.bgmVolumeValueElement = document.getElementById('bgm-volume-value');
-        this.sfxVolumeSlider = document.getElementById('sfx-volume');
-        this.sfxVolumeValueElement = document.getElementById('sfx-volume-value');
-
         // --- オーディオ関連のプロパティ ---
         this.audioListener = new THREE.AudioListener();
         this.audioLoader = new THREE.AudioLoader();
         this.bgmSound = null;
         this.bgmLoaded = false;
         this.bgmPlayInitiated = false; // BGMが再生開始されたかのフラグ (初回のみ再生用)
-
         this.sfxBeamSound = null;
         this.sfxBeamLoaded = false;
     }
@@ -87,9 +95,6 @@ class Game {
 
     async init() {
         try {
-            // --- 音量コントロールのセットアップを呼び出し ---
-            this._setupAudioControls(); 
-
             // --- 1. 物理エンジン関連の初期化 ---
             if (this.loadingMessageElement) this.loadingMessageElement.textContent = '物理エンジンを初期化中...';
             await this.physicsManager.initAmmo();
@@ -98,6 +103,42 @@ class Game {
 
             if (this.loadingMessageElement) this.loadingMessageElement.textContent = '物理ワールドを構築中...';
             this.physicsManager.initPhysicsWorld();
+
+            // --- ボリュームスライダーの初期設定とイベントリスナー ---
+            // BGM用
+            if (this.bgmVolumeSlider) {
+                this.bgmVolumeSlider.value = BGM_VOLUME.toString();
+                if (this.bgmVolumeValueSpan) {
+                    this.bgmVolumeValueSpan.textContent = `${Math.round(BGM_VOLUME * 100)}%`;
+                }
+                this.bgmVolumeSlider.addEventListener('input', (event) => {
+                    const newVolume = parseFloat(event.target.value);
+                    if (this.bgmSound) {
+                        this.bgmSound.setVolume(newVolume);
+                    }
+                    if (this.bgmVolumeValueSpan) {
+                        this.bgmVolumeValueSpan.textContent = `${Math.round(newVolume * 100)}%`;
+                    }
+                });
+            }
+            // SFX用
+            if (this.sfxVolumeSlider) {
+                this.sfxVolumeSlider.value = SFX_BEAM_VOLUME.toString(); // SFXの初期ボリューム
+                if (this.sfxVolumeValueSpan) {
+                    this.sfxVolumeValueSpan.textContent = `${Math.round(SFX_BEAM_VOLUME * 100)}%`;
+                }
+                this.sfxVolumeSlider.addEventListener('input', (event) => {
+                    const newVolume = parseFloat(event.target.value);
+                    if (this.sfxBeamSound) { // sfxBeamSound オブジェクトのボリュームを変更
+                        this.sfxBeamSound.setVolume(newVolume);
+                    }
+                    if (this.sfxVolumeValueSpan) {
+                        this.sfxVolumeValueSpan.textContent = `${Math.round(newVolume * 100)}%`;
+                    }
+                    // 他のSFXがある場合は、それらもここで更新するか、
+                    // SFX再生時にこのスライダーの値からボリュームを取得する仕組みが必要
+                });
+            }
 
             // --- 2. Three.js環境の初期化 ---
             if (this.loadingMessageElement) this.loadingMessageElement.textContent = '3Dシーン環境を初期化中...';
@@ -112,14 +153,16 @@ class Game {
                 this.cameraManager.getMainCamera().add(this.audioListener);
                 console.log("AudioListener added to the main camera.");
 
+                // BGMロード
                 if (this.loadingMessageElement) this.loadingMessageElement.textContent = 'BGMを読み込み中...';
                 this.audioLoader.load(
-                    AUDIO_BGM_PATH,
+                    BGM_PATH,
                     (buffer) => {
                         this.bgmSound = new THREE.Audio(this.audioListener);
                         this.bgmSound.setBuffer(buffer);
-                        this.bgmSound.setLoop(AUDIO_BGM_LOOP);
-                        this.bgmSound.setVolume(AUDIO_BGM_VOLUME);
+                        this.bgmSound.setLoop(BGM_LOOP);
+                        const currentSliderVolume = this.bgmVolumeSlider ? parseFloat(this.bgmVolumeSlider.value) : BGM_VOLUME;
+                        this.bgmSound.setVolume(currentSliderVolume);
                         this.bgmLoaded = true;
                         console.log('BGM loaded successfully.');
                         if (this.loadingMessageElement && this.loadingMessageElement.textContent.includes('BGM')) {
@@ -138,19 +181,20 @@ class Game {
                     }
                 );
 
+                // SFXロード (ビーム音)
                 if (this.loadingMessageElement) this.loadingMessageElement.textContent = '効果音を読み込み中...';
                 this.audioLoader.load(
-                    AUDIO_SFX_BEAM_PATH,
+                    SFX_BEAM_PATH,
                     (buffer) => {
                         this.sfxBeamSound = new THREE.Audio(this.audioListener);
                         this.sfxBeamSound.setBuffer(buffer);
-                        this.sfxBeamSound.setLoop(AUDIO_SFX_BEAM_LOOP);
-                        this.sfxBeamSound.setVolume(AUDIO_SFX_BEAM_VOLUME);
+                        this.sfxBeamSound.setLoop(SFX_BEAM_LOOP);
+                        const currentSfxSliderVolume = this.sfxVolumeSlider ? parseFloat(this.sfxVolumeSlider.value) : SFX_BEAM_VOLUME;
+                        this.sfxBeamSound.setVolume(currentSfxSliderVolume);
                         this.sfxBeamLoaded = true;
                         console.log('SFX (beam) loaded successfully.');
-                        // 両方のオーディオロードが終わったタイミングでロードメッセージを最終更新しても良い
                     },
-                    undefined,
+                    undefined, // onProgress for SFX (optional)
                     (error) => {
                         console.error('SFX (beam) の読み込みに失敗しました:', error);
                          if (this.loadingMessageElement && this.loadingMessageElement.textContent.includes('効果音')) this.loadingMessageElement.textContent = '効果音の読み込みに失敗。';
@@ -188,55 +232,6 @@ class Game {
         }
     }
 
-
-    // --- ▼▼▼ 音量調整UIのセットアップとイベントリスナー設定用メソッド ▼▼▼ ---
-    _setupAudioControls() {
-        if (!this.bgmVolumeSlider || !this.bgmVolumeValueElement || !this.sfxVolumeSlider || !this.sfxVolumeValueElement) {
-            console.warn("音量調整UIの要素が見つかりません。");
-            return;
-        }
-
-        // BGMボリュームスライダーの初期設定
-        this.bgmVolumeSlider.value = AUDIO_BGM_VOLUME;
-        this.bgmVolumeValueElement.textContent = `${Math.round(AUDIO_BGM_VOLUME * 100)}%`;
-        this.bgmVolumeSlider.addEventListener('input', (event) => {
-            const volume = parseFloat(event.target.value);
-            if (this.bgmSound) {
-                this.bgmSound.setVolume(volume);
-            }
-            this.bgmVolumeValueElement.textContent = `${Math.round(volume * 100)}%`;
-        });
-
-        // 効果音ボリュームスライダーの初期設定
-        this.sfxVolumeSlider.value = AUDIO_SFX_BEAM_VOLUME;
-        this.sfxVolumeValueElement.textContent = `${Math.round(AUDIO_SFX_BEAM_VOLUME * 100)}%`;
-        this.sfxVolumeSlider.addEventListener('input', (event) => {
-            const volume = parseFloat(event.target.value);
-            // sfxBeamSound は再生時にボリュームが適用されることが多いが、
-            // ここで設定しておけば、次回再生時からこのボリュームになる。
-            // もし即時反映させたいなら、現在再生中の効果音インスタンスのボリュームも変更する必要があるが、
-            // THREE.Audioでは個別の再生インスタンスのボリューム変更は難しい。
-            // この場合、AUDIO_SFX_BEAM_VOLUME のような定数を更新し、
-            // sfxBeamSound.play() の直前に setVolume するか、
-            // sfxBeamSound 自体のデフォルトボリュームとして設定する。
-            // 今回は sfxBeamSound のデフォルトボリュームを変更する方針で。
-            if (this.sfxBeamSound) {
-                this.sfxBeamSound.setVolume(volume);
-            }
-            this.sfxVolumeValueElement.textContent = `${Math.round(volume * 100)}%`;
-        });
-
-        console.log("音量調整UIがセットアップされました。");
-    }
-    // --- ▲▲▲ 音量調整UIのセットアップとイベントリスナー設定用メソッド ▲▲▲ ---
-
-
-
-
-
-
-
-
     _handleStartKey(event) {
         if (event.key === 'Enter') {
             if (this.startGameMessageElement) {
@@ -244,23 +239,23 @@ class Game {
             }
             this.gameStarted = true;
 
-            if (!this.bgmPlayInitiated) { // bgmPlayInitiated を使って初回のみ再生
-                this._tryPlayBGM(); // この中で AudioContext.resume も行われる
+            if (!this.bgmPlayInitiated) {
+                this._tryPlayBGM();
                 this.bgmPlayInitiated = true;
             }
             console.log("Game started by Enter key!");
         } else {
-            // Enter以外のキーが押された場合は、再度リスナーを設定し直す
             window.addEventListener('keydown', this._handleStartKey.bind(this), { once: true });
         }
     }
 
     _tryPlayBGM() {
         if (!this.bgmLoaded || !this.bgmSound || this.bgmSound.isPlaying) return;
+        // ボリュームはロード時とスライダー操作時に設定済み
         if (this.audioListener.context.state === 'suspended') {
             this.audioListener.context.resume().then(() => {
                 console.log("AudioContext resumed by user interaction (BGM).");
-                if(this.bgmSound) this.bgmSound.play(); // 再度チェック
+                if(this.bgmSound) this.bgmSound.play();
                 console.log("BGM playback started after AudioContext resume.");
             }).catch(e => console.error("Error resuming AudioContext for BGM:", e));
         } else {
@@ -272,37 +267,81 @@ class Game {
     _initThreeJSEnvironment() {
         this.scene.background = new THREE.Color(0x6699cc);
         this.scene.fog = new THREE.Fog(0x6699cc, 800 * MAZE_SCALE, 2500 * MAZE_SCALE);
+
         const hemiLight = new THREE.HemisphereLight(0xffffff, 0x8d8d8d, 1.8);
         hemiLight.position.set(0, 250 * MAZE_SCALE, 0);
         this.scene.add(hemiLight);
-        const dirLight = new THREE.DirectionalLight(0xffffff, 2.2);
-        dirLight.position.set(150 * MAZE_SCALE, 350 * MAZE_SCALE, 200 * MAZE_SCALE);
-        dirLight.castShadow = true;
-        const shadowCamSize = 2000 * MAZE_SCALE;
-        dirLight.shadow.camera.top = shadowCamSize;
-        dirLight.shadow.camera.bottom = -shadowCamSize;
-        dirLight.shadow.camera.left = -shadowCamSize;
-        dirLight.shadow.camera.right = shadowCamSize;
-        dirLight.shadow.camera.near = 10;
-        dirLight.shadow.camera.far = 1000 * MAZE_SCALE;
-        dirLight.shadow.mapSize.width = 2048;
-        dirLight.shadow.mapSize.height = 2048;
-        dirLight.shadow.bias = -0.001;
+
+        // --- 指向性光源 (太陽光) の設定を定数から行う ---
+        const dirLight = new THREE.DirectionalLight(
+            DIRECTIONAL_LIGHT_COLOR,
+            DIRECTIONAL_LIGHT_INTENSITY
+        );
+
+        dirLight.position.copy(SUN_POSITION); // 太陽の位置を光源の方向として設定
+        dirLight.castShadow = DIRECTIONAL_LIGHT_CAST_SHADOW;
+
+        // シャドウカメラの設定を定数から行う
+        dirLight.shadow.camera.top = SHADOW_CAMERA_SIZE / 2;
+        dirLight.shadow.camera.bottom = -SHADOW_CAMERA_SIZE / 2;
+        dirLight.shadow.camera.left = -SHADOW_CAMERA_SIZE / 2;
+        dirLight.shadow.camera.right = SHADOW_CAMERA_SIZE / 2;
+        dirLight.shadow.camera.near = SHADOW_CAMERA_NEAR;
+        dirLight.shadow.camera.far = SHADOW_CAMERA_FAR;
+        dirLight.shadow.mapSize.width = DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE_WIDTH;
+        dirLight.shadow.mapSize.height = DIRECTIONAL_LIGHT_SHADOW_MAP_SIZE_HEIGHT;
+        dirLight.shadow.bias = DIRECTIONAL_LIGHT_SHADOW_BIAS;
+
         this.scene.add(dirLight);
-        this.scene.add(dirLight.target);
+        this.scene.add(dirLight.target); // ターゲットはデフォルトで原点 (0,0,0)
+
+        // --- 「見える太陽」オブジェクトの作成 ---
+        if (SUN_ENABLED) {
+            const sunGeometry = new THREE.SphereGeometry(SUN_SIZE, 32, 32);
+
+            // ↓↓↓ ここのマテリアル設定を変更します ↓↓↓
+
+            // --- MeshBasicMaterial を使用する場合 (自己発光ではない) ---
+            // このブロックをコメントアウトします
+            /*
+            const sunMaterial = new THREE.MeshBasicMaterial({
+                color: SUN_COLOR,
+                // fog: false // 太陽が霧の影響を受けないようにする場合 (これはMeshStandardMaterial側にもあります)
+            });
+            */
+
+            // --- MeshStandardMaterialで自己発光させる場合 (PostProcessingでBloomエフェクトをかけると効果的) ---
+            // このブロックのコメントアウトを外します
+            const sunMaterial = new THREE.MeshStandardMaterial({
+                emissive: SUN_COLOR,                 // 発光色 (太陽の色と同じにする)
+                emissiveIntensity: SUN_EMISSIVE_INTENSITY, // 発光の強さ (constants.js で定義)
+                color: SUN_COLOR,                    // ベースカラーも太陽の色に設定 (ほぼ見えなくなるが念のため)
+                metalness: 0.0,                      // 非金属
+                roughness: 1.0,                      // 完全にマットな表面 (光をあまり反射しない)
+                fog: false                           // 太陽が霧の影響を受けないようにする
+            });
+            // ↑↑↑ ここまでが自己発光用のマテリアル設定 ↑↑↑
+
+            const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
+            sunMesh.position.copy(SUN_POSITION); // 光源と同じ位置に太陽オブジェクトを配置
+            sunMesh.castShadow = false;      // 太陽自体は影を落とさない
+            sunMesh.receiveShadow = false;   // 太陽自体は他の影を受けない
+            this.scene.add(sunMesh);
+            // this.sunMesh = sunMesh; // 必要に応じて太陽メッシュをプロパティに保持
+        }
     }
 
     async _loadAssetsAndSetupGame() {
         const { mazeModel, characterBaseModel, animations } = await this.assetLoader.loadAll({
             MAZE_MODEL_PATH,
             CHARACTER_BASE_MODEL_PATH,
-            ANIMATION_PATHS 
+            ANIMATION_PATHS
         });
 
         if (mazeModel) {
             this.world.mazeModel = mazeModel;
             this.scene.add(this.world.mazeModel);
-            this.world.mazeModel.updateMatrixWorld(true); // 子要素のワールド行列を最新に
+            this.world.mazeModel.updateMatrixWorld(true);
             let floorObjectFound = false;
 
             this.world.mazeModel.traverse(child => {
@@ -311,33 +350,26 @@ class Game {
                     child.receiveShadow = true;
 
                     if (child.name.startsWith('Wall_')) {
-                        child.userData.isWall = true; // 壁であるというマーキング
-                        this.world.collidables.push(child); // カメラ衝突用
-                        this.raycastTargets.push(child);    // ビーム衝突用
-
-                        // ★ 坂道かどうかを判定 (例:名前に "_Slope_" が含まれるか)
+                        child.userData.isWall = true;
+                        this.world.collidables.push(child);
+                        this.raycastTargets.push(child);
                         const isSlopeObject = child.name.includes('_Slope_');
-                        this.physicsManager.createWallPhysicsBody(child, isSlopeObject); // 第2引数で坂道情報を渡す
+                        this.physicsManager.createWallPhysicsBody(child, isSlopeObject);
                     }
-                    else if (child.name === 'MazeFloor') { // 床の処理 (else if に変更推奨)
+                    else if (child.name === 'MazeFloor') {
                         this.world.mazeFloor = child;
                         this.world.collidables.push(child);
-                        // 床は通常平らなので isSlope は false
                         this.physicsManager.createWallPhysicsBody(child, false);
                         floorObjectFound = true;
                         const boundingBox = new THREE.Box3().setFromObject(child);
                         this.mazeFloorMaxY = boundingBox.max.y;
-                        console.log(`MazeFloor found. Max Y: ${this.mazeFloorMaxY.toFixed(2)}, Min Y: ${boundingBox.min.y.toFixed(2)}`); // ★ ログ追加
-                        // ★ (オプション) 床もビームの衝突対象にするなら
-                        // this.raycastTargets.push(child);
+                        console.log(`MazeFloor found. Max Y: ${this.mazeFloorMaxY.toFixed(2)}, Min Y: ${boundingBox.min.y.toFixed(2)}`);
                     }
-                    // 他にも特定の名前やuserDataで識別するオブジェクトがあればここに追加
                 }
             });
 
             if (!floorObjectFound) {
                 console.warn("警告: 'MazeFloor' という名前の床オブジェクトが見つかりませんでした。");
-                // 床がないとキャラクターの初期位置などが問題になる可能性
             }
         } else {
             throw new Error("迷路モデルの読み込みに失敗しました。");
@@ -346,7 +378,7 @@ class Game {
         if (characterBaseModel && animations) {
             this.character = new Character(
                 characterBaseModel,
-                animations, // ジャンプアニメーションも含まれている
+                animations,
                 this.scene,
                 this.physicsManager,
                 CHARACTER_INITIAL_POSITION,
@@ -355,74 +387,81 @@ class Game {
                 this.projectileManager
             );
             this.character.onAnimationFinishedCallback = this._onCharacterAnimationFinished.bind(this);
+
+            if (this.character.model) {
+                this.scene.add(this.character.model);
+                this.character.model.updateMatrixWorld(true);
+                const characterBoundingBox = new THREE.Box3().setFromObject(this.character.model);
+                const characterSize = new THREE.Vector3();
+                characterBoundingBox.getSize(characterSize);
+                console.log('--- Character Model Dimensions (after scaling in Character.js) ---');
+                console.log('Character Min:', characterBoundingBox.min);
+                console.log('Character Max:', characterBoundingBox.max);
+                console.log('Character Width (X):', characterSize.x);
+                console.log('Character Height (Y):', characterSize.y);
+                console.log('Character Depth (Z):', characterSize.z);
+                console.log('Defined CHARACTER_HEIGHT:', CHARACTER_HEIGHT);
+                console.log('Calculated Model Height (Y):', characterSize.y);
+            }
         } else {
             throw new Error("キャラクターモデルまたはアニメーションの読み込みに失敗しました。");
         }
 
         this.sphereManager.createSpheres(NUM_SPHERES, this.world.mazeModel);
-        this.ramielManager.createRamiels(NUM_RAMIELS, this.world.mazeModel); // ラミエル追加
-        this.cameraManager.setInitialCameraState(this.character.model); // character が null でないことを保証
+        this.ramielManager.createRamiels(NUM_RAMIELS, this.world.mazeModel);
+        this.cameraManager.setInitialCameraState(this.character.model);
 
         if (this.minimap) {
-            if (this.world.mazeFloor) { // 床オブジェクトが存在する場合のみ設定
+            if (this.world.mazeFloor) {
                 this.minimap.setupMinimapCameraView(this.world.mazeModel, this.world.mazeFloor);
             } else {
                 console.warn("Minimap: 床オブジェクトが見つからないため、ミニマップカメラのセットアップをスキップしました。");
-                // フォールバックとして迷路モデル全体からカメラを設定するなどの処理も考えられる
-                this.minimap.setupMinimapCameraView(this.world.mazeModel, null); // 床なしで呼ぶか、別のロジック
+                this.minimap.setupMinimapCameraView(this.world.mazeModel, null);
             }
         }
     }
 
     _onCharacterAnimationFinished(finishedActionName) {
-    console.log("Game._onCharacterAnimationFinished: CALLED with action:", finishedActionName); // ★ ログ追加
+        console.log("Game._onCharacterAnimationFinished: CALLED with action:", finishedActionName);
         if (finishedActionName === 'kick') {
-            if (this.character) { // nullチェックを追加
-            console.log("Game._onCharacterAnimationFinished: Kick finished. Setting character.canPlayAction = true."); // ★ ログ追加
-            this.character.canPlayAction = true;
+            if (this.character) {
+                console.log("Game._onCharacterAnimationFinished: Kick finished. Setting character.canPlayAction = true.");
+                this.character.canPlayAction = true;
             }
         }
-        if (this.character && this.character.canPlayAction) { // nullチェックと条件の簡略化
-            // if (this.character.isGrounded) { // ← isGrounded は Character 側で常に true (仮)
-                if (!this.character.isMoving && this.character.currentActionName !== 'idle') {
-                    this.character.switchAnimation('idle');
-                } else if (this.character.isMoving && this.character.currentActionName !== 'run') {
-                    this.character.switchAnimation('run');
-                }
+        if (this.character && this.character.canPlayAction) {
+            if (!this.character.isMoving && this.character.currentActionName !== 'idle') {
+                this.character.switchAnimation('idle');
+            } else if (this.character.isMoving && this.character.currentActionName !== 'run') {
+                this.character.switchAnimation('run');
+            }
         }
     }
 
     animate() {
         requestAnimationFrame(this.animate.bind(this));
         const delta = this.clock.getDelta();
-        const fixedTimeStep = 1.0 / 60.0; // 物理演算の固定時間ステップ
+        const fixedTimeStep = 1.0 / 60.0;
 
-        // ★★★ 修正箇所: gameStarted のチェックを animate の先頭に移動 ★★★
         if (!this.gameStarted) {
-            if (this.character && this.cameraManager && this.cameraManager.getMainCamera()) {
-            }
+            // ゲーム開始前もシーンとミニマップのレンダリングは行う
             this.renderer.clear();
-
             if (this.cameraManager && this.cameraManager.getMainCamera()) {
                 this.renderer.render(this.scene, this.cameraManager.getMainCamera());
             }
-            if (MINIMAP_ENABLED && this.minimap && this.character) { // MINIMAP_ENABLED も考慮
+            if (MINIMAP_ENABLED && this.minimap && this.character) {
                 this.minimap.updateAndRender(this.character.model, CHARACTER_HEIGHT, this.mazeFloorMaxY, this.world.mazeFloor);
             }
-            return; // gameStartedがfalseの間は、以下の処理に進まない
+            return;
         }
 
-        // --- 通常のゲームループ (gameStarted が true の場合) ---
-
-        // ★★★ 修正箇所: キック入力処理 (character の存在チェックを追加) ★★★
+        // --- 通常のゲームループ ---
         if (this.inputManager.consumeSpacePress()) {
             if (this.character && this.character.startKickAction()) {
-                // キックアクションが成功した場合の処理 (例:効果音の再生など)
-                // (効果音再生は Character.startKickAction 内か、ここで行うか設計による)
+                // キックアクション成功時の処理 (効果音は Character.startKickAction or animate()内のビーム生成時)
             }
         }
 
-        // キャラクターの更新 (character の存在チェックを追加)
         if (this.character) {
             this.character.update(
                 delta, this.inputManager, this.cameraManager.getMainCamera(),
@@ -430,22 +469,16 @@ class Game {
             );
         }
 
-        // 物理シミュレーションのステップ
         this.physicsManager.stepSimulation(delta, 2, fixedTimeStep);
 
-        // キャラクターの物理状態をモデルに同期 (character の存在チェックを追加)
         if (this.character) {
             this.character.syncPhysicsToModel(this.tempTransform, CHARACTER_HEIGHT);
         }
 
-        // 球の物理状態をモデルに同期
         this.sphereManager.syncAllSpheres(this.tempTransform);
-
-        // --- 追加 ラミエルの同期処理 ---
         this.ramielManager.syncAllRamiels(this.tempTransform);
 
 
-        // ビーム生成ロジック (character の存在チェックと kickActionStartTime のチェックを追加)
         if (this.character && this.character.currentActionName === 'kick' &&
             this.character.kickActionStartTime !== null && !this.character.beamGeneratedDuringKick) {
             const elapsedSinceKickStart = (performance.now() - this.character.kickActionStartTime) / 1000;
@@ -457,24 +490,21 @@ class Game {
                 this.character.beamGeneratedDuringKick = true;
                 if (this.sfxBeamLoaded && this.sfxBeamSound) {
                     if (this.sfxBeamSound.isPlaying) this.sfxBeamSound.stop();
+                    // ボリュームはTHREE.Audioオブジェクトに既に設定されているので、play()だけでOK
                     this.sfxBeamSound.play();
                 }
             }
         }
 
-        // カメラの更新 (character の存在チェックを追加)
         if (this.character && this.cameraManager) {
             this.cameraManager.updateCamera(
                 this.character.model, this.character.isMoving, this.inputManager
             );
         }
 
-        // エフェクトの更新
         this.effectManager.update(delta);
 
-        // プロジェクタイル（ビーム）の更新
         this.projectileManager.update(delta, (hitObject, projectile, hitPoint, distanceToHit, intersection) => {
-            // ... (既存のビーム衝突処理) ...
             if (hitObject.userData && hitObject.userData.isWall) {
                 return "stop_and_adjust";
             }
@@ -492,74 +522,41 @@ class Game {
                     return "ignore";
                 }
             }
-
-            // --- ここから 追加ラミエルの衝突判定 ---
             if (this.ramielManager.isRamiel(hitObject)) {
                 if (this.effectManager) {
                     const ramielEffectPosition = hitObject.position.clone();
-
-
-                    // ★★★ hitObject の Y 座標を地面の高さに補正する ★★★
-                    // PhysicsManager から地面の高さを取得するか、
-                    // mazeFloorMaxY を使うなど、適切な地面の高さを設定する。
-                    // ここでは仮に mazeFloorMaxY を使用する (ramielEffectPositionが空中に浮いている場合を想定)
-                    // もし hitObject.position が既に地面に近いならこの補正は不要か、微調整。
-                    // 理想は、衝突点のy座標を使うか、ラミエルの足元のy座標を使う。
-                    // 今回はラミエルの中心位置のYから、ラミエルの高さの半分を引いて足元を出すイメージ。
-                    const ramielBodyHalfHeight = RAMIEL_SIZE * 0.707; // 物理ボディのサイズから（要調整）
+                    const ramielBodyHalfHeight = RAMIEL_SIZE * 0.707;
                     const groundPosition = new THREE.Vector3(
                         ramielEffectPosition.x,
-                        // hitObject.position.y - ramielBodyHalfHeight, // ラミエルの足元想定
-                        this.world.mazeFloor ? this.world.mazeFloorMaxY : ramielEffectPosition.y - ramielBodyHalfHeight, // 床があるなら床のY、なければ計算
+                        this.world.mazeFloor ? this.world.mazeFloorMaxY : ramielEffectPosition.y - ramielBodyHalfHeight,
                         ramielEffectPosition.z
                     );
-
-
-
-
-
-                    const ramielBaseColor = new THREE.Color(RAMIEL_COLOR); // 定数から取得
-
-                    // 火花エフェクト (色はラミエルカラー、その他は球体と同じ設定)
+                    const ramielBaseColor = new THREE.Color(RAMIEL_COLOR);
                     this.effectManager.createSparkExplosion(
                         ramielEffectPosition,
-                        ramielBaseColor.clone().multiplyScalar(1.5) // 色を少し明るくするなどの調整は可能
+                        ramielBaseColor.clone().multiplyScalar(1.5)
                     );
-
-                    // デブリエフェクト (色はラミエルカラー、その他は球体と同じ設定)
                     this.effectManager.createDebrisExplosion(
-                        ramielEffectPosition, // createSparkExplosionでcloneしているので、再度cloneするか同じものを使う
+                        ramielEffectPosition,
                         ramielBaseColor
                     );
-
-                    // --- ここから十字架エフェクトの呼び出し ---
-                    this.effectManager.createRamielCrossExplosion(groundPosition); // 十字架は地面から
-
+                    this.effectManager.createRamielCrossExplosion(groundPosition);
                 }
                 this.ramielManager.destroyRamielByMesh(hitObject);
                 return "destroy_target_and_continue";
             }
-            // --- 追加ラミエルとの衝突判定 ---
-
-
-
-
             return "ignore";
         });
 
-
-        // レンダリング
         this.renderer.clear();
         if (this.cameraManager && this.cameraManager.getMainCamera()) {
             this.renderer.render(this.scene, this.cameraManager.getMainCamera());
         }
 
-        // ミニマップの更新とレンダリング (character の存在チェックを追加)
-        if (MINIMAP_ENABLED && this.minimap && this.character) { // MINIMAP_ENABLED も考慮
+        if (MINIMAP_ENABLED && this.minimap && this.character) {
             this.minimap.updateAndRender(this.character.model, CHARACTER_HEIGHT, this.mazeFloorMaxY, this.world.mazeFloor);
         }
     }
-
 
     _onWindowResize() {
         if (!this.cameraManager || !this.renderer) return;

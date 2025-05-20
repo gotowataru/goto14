@@ -56,14 +56,13 @@ _initCharacterIndicator() {
     const indicatorGeo = new THREE.ShapeGeometry(arrowShape);
 
     // Option B: 少し厚みを持たせる (ExtrudeGeometry)
-    /*
-    const extrudeSettings = {
-        steps: 1,
-        depth: s * 0.2, // 厚み
-        bevelEnabled: false
-    };
-    const indicatorGeo = new THREE.ExtrudeGeometry(arrowShape, extrudeSettings);
-    */
+    //const extrudeSettings = {
+    //    steps: 2,
+    //    depth: s * 1.5, // 厚み
+    //    bevelEnabled: false
+    //};
+    // const indicatorGeo = new THREE.ExtrudeGeometry(arrowShape, extrudeSettings);
+
 
     // ジオメトリの向きを調整 (X軸で90度回転してXY平面からXZ平面にする)
     indicatorGeo.rotateX(-Math.PI / 2); // 上から見たときにXY平面で作った形状が見えるように
@@ -71,13 +70,15 @@ _initCharacterIndicator() {
     indicatorGeo.rotateY(Math.PI); // 例: 初期で下向きにするなど
 
     const indicatorMat = new THREE.MeshBasicMaterial({
-        color: 0x00FF00,       // 赤色
+        color: 0xff1f1f,       // 赤色
         side: THREE.DoubleSide, // PlaneGeometry や ShapeGeometry を使う場合、両面表示が良い
         depthTest: false,
         toneMapped: false
     });
 
     this.characterIndicator = new THREE.Mesh(indicatorGeo, indicatorMat);
+
+    this.characterIndicator.renderOrder = 999; // 例として999を使用
 
     // シーンに追加し、レイヤーを設定
     this.scene.add(this.characterIndicator);
@@ -150,7 +151,7 @@ _initCharacterIndicator() {
             originalOpacity = currentActiveMazeFloor.material.opacity;
             originalTransparent = currentActiveMazeFloor.material.transparent;
 
-            currentActiveMazeFloor.material.opacity = 0.3; // ミニマップ用の透明度
+            currentActiveMazeFloor.material.opacity = 0.1; // ミニマップ用の透明度
             currentActiveMazeFloor.material.transparent = true;
             currentActiveMazeFloor.material.needsUpdate = true;
         }
