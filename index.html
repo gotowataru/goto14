@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Maze and Character Viewer with Minimap (Ammo.js Physics)</title>
     <style>
+        /* ... (既存のスタイルはそのまま) ... */
+
         body {
             margin: 0;
             overflow: hidden;
@@ -14,17 +16,26 @@
         canvas {
             display: block;
         }
-        #controls-info {
+
+        /* 左上UIパネル全体のスタイル */
+        #ui-panel-left {
             position: absolute;
             top: 20px;
             left: 20px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* 操作方法表示用のスタイル */
+        #controls-info {
             padding: 12px 18px;
             background-color: rgba(0, 0, 0, 0.65);
             color: #f0f0f0;
             border-radius: 8px;
             font-size: 14px;
             line-height: 1.7;
-            z-index: 100;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
         #controls-info p {
@@ -37,45 +48,36 @@
             margin-bottom: 8px;
         }
 
-        /* --- ▼▼▼ 音量調整UI用のスタイルを追加 ▼▼▼ --- */
-        #audio-controls {
-            position: absolute;
-            /* #controls-info のおおよその高さ(約90-100px) + マージン(20px) を考慮 */
-            top: 160px; /* この値は #controls-info の実際の高さに応じて調整してください */
-            left: 20px;
-            padding: 10px 15px;
+        /* ボリュームコントロール用のスタイル (BGMとSFX共通の親コンテナも考慮) */
+        .volume-control-group { /* BGMとSFXの各コントロールをグループ化 */
+            padding: 10px 18px;
             background-color: rgba(0, 0, 0, 0.65);
             color: #f0f0f0;
             border-radius: 8px;
-            font-size: 13px;
-            line-height: 1.6;
-            z-index: 100;
+            font-size: 14px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
-        #audio-controls div {
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-        }
-        #audio-controls div:last-child {
-            margin-bottom: 0;
-        }
-        #audio-controls label {
+        .volume-control-group label {
             margin-right: 8px;
-            width: 90px; /* ラベルの幅を固定して揃える */
-            flex-shrink: 0; /* ラベルが縮まないように */
+            vertical-align: middle;
+            display: inline-block; /* 幅を確保 */
+            width: 70px; /* ラベルの幅を揃える (調整してください) */
         }
-        #audio-controls input[type="range"] {
-            width: 100px; /* スライダーの幅 */
-            margin-right: 8px;
+        .volume-control-group input[type="range"] {
+            width: 100px; /* スライダーの幅を少し調整 */
+            vertical-align: middle;
             cursor: pointer;
         }
-        #audio-controls span {
-            width: 35px; /* 値表示エリアの幅 */
+        .volume-control-group span {
+            margin-left: 8px;
+            vertical-align: middle;
+            min-width: 35px;
+            display: inline-block;
             text-align: right;
         }
-        /* --- ▲▲▲ 音量調整UI用のスタイルを追加 ▲▲▲ --- */
 
+
+        /* ロード中メッセージ */
         #loading-message {
             position: absolute;
             top: 50%;
@@ -89,6 +91,7 @@
             z-index: 1001;
         }
 
+        /* ゲーム開始メッセージ用のスタイル */
         #start-game-message {
             position: absolute;
             top: 50%;
@@ -112,26 +115,27 @@
 </head>
 <body>
 
-    <div id="controls-info">
-        <p><strong>操作方法</strong></p>
-        <p>W/A/S/D または ↑/←/↓/→ : 移動</p>
-        <p>スペースキー : キック</p>
-    </div>
+    <div id="ui-panel-left">
+        <div id="controls-info">
+            <p><strong>操作方法</strong></p>
+            <p>W/A/S/D または ↑/←/↓/→ : 移動</p>
+            <p>スペースキー : キック</p>
+        </div>
 
-    <!-- --- ▼▼▼ 音量調整UIを追加 ▼▼▼ --- -->
-    <div id="audio-controls">
-        <div>
-            <label for="bgm-volume">BGM 音量:</label>
-            <input type="range" id="bgm-volume" min="0" max="1" step="0.01">
-            <span id="bgm-volume-value">-%</span>
+        <!-- BGMボリュームコントロール -->
+        <div id="bgm-volume-control" class="volume-control-group">
+            <label for="bgm-volume-slider">BGM音量:</label>
+            <input type="range" id="bgm-volume-slider" min="0" max="1" step="0.01">
+            <span id="bgm-volume-value"></span>
         </div>
-        <div>
-            <label for="sfx-volume">効果音 音量:</label>
-            <input type="range" id="sfx-volume" min="0" max="1" step="0.01">
-            <span id="sfx-volume-value">-%</span>
+
+        <!-- ★★★ SFXボリュームコントロール用の要素を追加 ★★★ -->
+        <div id="sfx-volume-control" class="volume-control-group">
+            <label for="sfx-volume-slider">効果音量:</label>
+            <input type="range" id="sfx-volume-slider" min="0" max="1" step="0.01">
+            <span id="sfx-volume-value"></span>
         </div>
     </div>
-    <!-- --- ▲▲▲ 音量調整UIを追加 ▲▲▲ --- -->
 
     <div id="loading-message">読み込み中...ちょっと待ってね。画面が変わらないときは「Ctrl + Shift + R」でリロードして下さい</div>
 
@@ -149,6 +153,6 @@
             }
         }
     </script>
-    <script type="module" src="main.js"></script>
+    <script type="module" src="main.js"></script> <!-- または Game.js -->
 </body>
 </html>
