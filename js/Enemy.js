@@ -118,7 +118,7 @@ export class Enemy {
     switchAnimation(name, crossFadeDuration = 0.2) {
         if (this.currentActionName === name && (name === 'idle' || name === 'run')) return;
         if (!this.mixer || !this.actions[name]) {
-            console.warn(`Enemy (${this.config.MODEL_PATH}): Animation "${name}" not found.`);
+            // console.warn(`Enemy (${this.config.MODEL_PATH}): Animation "${name}" not found.`);
             return;
         }
 
