@@ -175,4 +175,9 @@ _initCharacterIndicator() {
         if (currentScissorTest) this.renderer.setScissor(currentScissor);
         this.renderer.setViewport(currentViewport);
     }
+
+    onWindowResize() {
+        if (!this.isEnabled || !this.camera) return;
+    }
+
 }

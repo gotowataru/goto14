@@ -9,7 +9,7 @@ import {
 
 export class Character {
     constructor(model, animations, scene, physicsManager, initialPosition, initialScale, localForwardVec, projectileManager) {
-        console.log("%cCharacter constructor: CALLED. Model provided:", "color: blue; font-weight: bold;", model ? model.name : "No model");
+
         this.model = model;
         this.scene = scene;
         this.physicsManager = physicsManager;
@@ -44,16 +44,13 @@ export class Character {
         this._createPhysicsBody(initialPosition, CHARACTER_HEIGHT, CHARACTER_RADIUS, CHARACTER_MASS);
 
         this.mixer.addEventListener('finished', this._onAnimationFinished.bind(this));
-        console.log("%cCharacter constructor: FINISHED. Model name in scene:", "color: blue; font-weight: bold;", this.model ? this.model.name : "No model", "Position:", this.model.position);
     }
 
     _setupAnimations(animationClips) {
-        console.log("Character._setupAnimations: Received animationClips:", animationClips); 
         for (const name in animationClips) {
             const clip = animationClips[name];
             if (clip instanceof THREE.AnimationClip) { // ★ 修正: 元のシンプルなバージョンに戻す (if (clip) だと配列の場合エラーになる可能性があった)
                 this.actions[name] = this.mixer.clipAction(clip);
-                console.log(`Character._setupAnimations: Action created for "${name}" with clip "${clip.name}".`);
                 if (name === 'idle' || name === 'run') {
                     this.actions[name].setLoop(THREE.LoopRepeat);
                 // --- JUMP: ジャンプアニメーションの設定を削除 ---
@@ -69,10 +66,8 @@ export class Character {
                 console.warn(`Character._setupAnimations: Animation clip for "${name}" is not a valid THREE.AnimationClip or is missing. Received:`, clip);
             }
         }
-        console.log("Character._setupAnimations: Final this.actions object:", this.actions);
         if (this.actions['idle']) {
             this.switchAnimation('idle');
-            console.log("Character._setupAnimations: Initial animation set to 'idle'.");
         } else {
             console.error("Character._setupAnimations: 'idle' animation action not found. Cannot set initial animation.");
         }
@@ -89,7 +84,6 @@ export class Character {
     }
 
     _onAnimationFinished(event) {
-        console.log(`Character._onAnimationFinished: Animation "${Object.keys(this.actions).find(name => this.actions[name] === event.action)}" finished.`);
         const finishedAction = event.action;
         const finishedActionName = Object.keys(this.actions).find(name => this.actions[name] === finishedAction);
 
@@ -99,10 +93,8 @@ export class Character {
     }
 
     switchAnimation(name, crossFadeDuration = 0.2) { // crossFadeDuration を引数に追加
-        console.log(`%cCharacter.switchAnimation: CALLED with "${name}". Current action: "${this.currentActionName}"`, "color: magenta;");
 
         if (!this.mixer || !this.actions[name]) { // ジャンプアクションがなくてもエラーにならないように
-            console.warn(`Character.switchAnimation: Mixer or Action "${name}" not found.`);
             return;
         }
         // --- JUMP: ジャンプアニメーションの無視条件を削除 ---
@@ -113,7 +105,6 @@ export class Character {
         const nextAction = this.actions[name];
 
         if (previousAction && previousAction !== nextAction) {
-            console.log(`Character.switchAnimation: Fading out "${this.currentActionName}".`);
             previousAction.fadeOut(crossFadeDuration);
         }
 
@@ -123,7 +114,6 @@ export class Character {
             .setEffectiveWeight(1)
             .fadeIn(crossFadeDuration)
             .play();
-        console.log(`Character.switchAnimation: Action "${name}" play() and fadeIn() called.`);
 
         this.currentActionName = name;
 
@@ -136,7 +126,6 @@ export class Character {
                 const worldForward = this.localForwardDirection.clone().applyQuaternion(this.model.quaternion);
                 this.projectileManager.createRing(this.model, worldForward);
             }
-            console.log("Character.switchAnimation: Kick action processing."); // ★ ログ追加
         } else {
             // キック以外のアニメーションに切り替わった場合
             this.kickActionStartTime = null;
@@ -232,14 +221,11 @@ export class Character {
     }
 
     startKickAction() {
-        console.log("Character.startKickAction: CALLED. canPlayAction:", this.canPlayAction); // ★ ログ追加
         if (this.canPlayAction) { // isGrounded のチェックを外す (isGrounded自体はtrueにしてある)
             this.switchAnimation('kick');
             // this.canPlayAction = false; // アクション中は再実行不可  ★ ここで false にするのも良いが、switchAnimation側で一元管理する方が良い
-            console.log("Character.startKickAction: Switched to kick. canPlayAction is now (or will be set by switchAnimation):", this.canPlayAction); // ★ ログ追加
             return true;
         }
-        console.log("Character.startKickAction: Cannot play kick action (canPlayAction is false)."); // ★ ログ追加
         return false;
     }
 }

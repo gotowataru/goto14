@@ -4,7 +4,7 @@ import {
     BEAM_COLOR, BEAM_RADIUS, BEAM_LENGTH, BEAM_SPEED, // BEAM_RAYCAST_DISTANCE は不要
     RING_COLOR, RING_RADIUS, RING_DURATION, BEAM_SPAWN_OFFSET_FORWARD,
     RING_SPAWN_OFFSET_FORWARD, RING_SPAWN_OFFSET_UP, CHARACTER_HEIGHT,
-    MAX_BEAM_LIFETIME // constants.js に定義されていることを想定
+    MAX_BEAM_LIFETIME
 } from './constants.js';
 
 export class ProjectileManager {
@@ -45,8 +45,8 @@ export class ProjectileManager {
             .add(new THREE.Vector3(0, RING_SPAWN_OFFSET_UP, 0));
         ring.position.copy(ringPosition);
 
-        const rotateY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2); // リングを垂直。触るな
-        const ringHoleDirWhenVertical = new THREE.Vector3(1, 0, 0); // リングの穴を垂直。触るな
+        const rotateY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2); // リングを垂直。触るな  // 向き設定 Geminiが勝手に修正する時があるので注意
+        const ringHoleDirWhenVertical = new THREE.Vector3(1, 0, 0); // リングの穴を垂直。触るな // 向き設定 Geminiが勝手に修正する時があるので注意
         const alignToForward = new THREE.Quaternion().setFromUnitVectors(ringHoleDirWhenVertical, forward);
         ring.quaternion.copy(rotateY).multiply(alignToForward);
 
@@ -65,7 +65,7 @@ export class ProjectileManager {
         forward.normalize();
 
         const characterPosition = characterModel.position.clone();
-        const beamSpawnHeight = charHeight * 0.8; // ビームの高さ
+        const beamSpawnHeight = charHeight * 0.8; // ビームの高さ。触るな
         const beamPosition = characterPosition.clone()
             .addScaledVector(forward, spawnOffsetFwd)
             .add(new THREE.Vector3(0, beamSpawnHeight, 0));
