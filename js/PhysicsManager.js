@@ -3,8 +3,6 @@ import * as THREE from 'three';
 import {
     CHARACTER_FRICTION, CHARACTER_RESTITUTION,
     WALL_FRICTION, WALL_RESTITUTION,
-    // 必要に応じてキャラクターの衝突グループ/マスク用の定数を追加
-    // CHARACTER_COLLISION_GROUP, WORLD_COLLISION_MASKなど
 } from './constants.js';
 
 export class PhysicsManager {
@@ -20,13 +18,9 @@ export class PhysicsManager {
         this.rigidBodies = []; // ワールドに追加されたリジッドボディを管理
     }
 
-    // ★★★ isInitialized メソッドを追加 ★★★
     isInitialized() {
         return !!(this.AmmoAPI && this.physicsWorld); // AmmoAPI と physicsWorld の両方が存在すれば true
     }
-    // ★★★ 追加ここまで ★★★
-
-
 
     async initAmmo() {
         return new Promise((resolve, reject) => {
@@ -107,15 +101,8 @@ export class PhysicsManager {
         body.setAngularFactor(new this.AmmoAPI.btVector3(0, 1, 0));
         body.setFriction(CHARACTER_FRICTION);
         body.setRestitution(CHARACTER_RESTITUTION);
-        // body.setCollisionFlags(body.getCollisionFlags() | SomeFlag); // 必要なら特定のフラグ
 
-        // キャラクター用の衝突グループとマスクを設定 (例)
-        // const CHARACTER_GROUP = 1; // constants.js で定義
-        // const WORLD_GROUP = 2;    // constants.js で定義
-        // const SPHERE_GROUP = 4;   // constants.js で定義
-        // this.addRigidBodyToWorld(body, CHARACTER_GROUP, WORLD_GROUP | SPHERE_GROUP); // ワールドと球とのみ衝突
         this.addRigidBodyToWorld(body); // デフォルトは全てと衝突
-
         return body;
     }
 
@@ -128,14 +115,12 @@ export class PhysicsManager {
         transform.setIdentity();
 
         if (isSlope) {
-            const triangleMesh = new this.AmmoAPI.btTriangleMesh(true, true); // use32bitIndices, use4componentVertices (通常true,trueでOK)
+            const triangleMesh = new this.AmmoAPI.btTriangleMesh(true, true);
             const geometry = wallMesh.geometry;
 
             if (!geometry.index) {
                 console.warn("Slope mesh is not indexed. Trying to create non-indexed triangle mesh. This might be less efficient or fail.", wallMesh.name);
-                // 非インデックスジオメトリからbtTriangleMeshを作るのは複雑か、サポート外の可能性。
-                // Indexed BufferGeometryを使うのが基本。
-                // ここではフォールバックとしてボックス形状を使う（あるいはエラー終了）
+
                 const box = new THREE.Box3().setFromObject(wallMesh);
                 const size = new THREE.Vector3();
                 box.getSize(size);
@@ -168,10 +153,7 @@ export class PhysicsManager {
                     vec3.setValue(p2.x, p2.y, p2.z);
                     triangleMesh.addTriangle(vec1, vec2, vec3, false); // removeDuplicateVertices = false
                 }
-                shape = new this.AmmoAPI.btBvhTriangleMeshShape(triangleMesh, true); // useQuantizedAabbCompression = true
-                // btBvhTriangleMeshShapeの場合、頂点がワールド座標で定義されているため、
-                // 剛体のtransformは単位行列（位置(0,0,0)、回転なし）とするのが一般的
-                // (上記のコードでは頂点をワールド座標に変換しているため)
+                shape = new this.AmmoAPI.btBvhTriangleMeshShape(triangleMesh, true);
             }
         } else { // 通常の壁 (ボックス形状)
             const box = new THREE.Box3().setFromObject(wallMesh);
@@ -192,12 +174,12 @@ export class PhysicsManager {
         const rbInfo = new this.AmmoAPI.btRigidBodyConstructionInfo(mass, motionState, shape, localInertia);
         const body = new this.AmmoAPI.btRigidBody(rbInfo);
 
-        body.setFriction(WALL_FRICTION); // isSlope であれば SLOPE_FRICTION を使うなども可能
+        body.setFriction(WALL_FRICTION); 
         body.setRestitution(WALL_RESTITUTION);
-        body.setCollisionFlags(body.getCollisionFlags() | 2); // CF_STATIC_OBJECT
-        body.setActivationState(4); // DISABLE_DEACTIVATION
+        body.setCollisionFlags(body.getCollisionFlags() | 2); 
+        body.setActivationState(4);
 
-        this.addRigidBodyToWorld(body); // ワールドへの追加と管理リストへの登録
+        this.addRigidBodyToWorld(body);
         return body;
     }
 
@@ -232,6 +214,7 @@ export class PhysicsManager {
      * @param {THREE.Vector3} [offset=new THREE.Vector3(0,0,0)] - Three.jsオブジェクトの中心と物理ボディの中心のオフセット
      * @returns {Ammo.btRigidBody | null} 作成された Ammo.btRigidBody、または失敗した場合は null
      */
+
     createBoxPhysicsBody(threeObject, halfExtents, mass, friction, restitution, isKinematic = false, offset = new THREE.Vector3(0,0,0)) {
         if (!this.AmmoAPI || !this.physicsWorld) {
             console.error("PhysicsManager: AmmoAPIまたはPhysicsWorldが初期化されていません。Cannot create box physics body.");
@@ -279,15 +262,7 @@ export class PhysicsManager {
             // 現状の createWallPhysicsBody では CF_STATIC_OBJECT (フラグ値2) を設定しているので、
             // ここでは質量0なら静的と見なすのが自然。
             // ただし、キネマティックも質量0で定義されることがあるので、isKinematic を優先。
-            body.setCollisionFlags(body.getCollisionFlags() | 1); // CF_STATIC_OBJECT (Ammo.jsの定義による)
-                                                                // 通常はCF_STATIC_OBJECT = 1、CF_KINEMATIC_OBJECT = 2
-                                                                // createWallPhysicsBody では 2 (CF_STATIC_OBJECT) を使用している点に注意。
-                                                                // Ammo.jsのドキュメントや btCollisionObject.h を確認して正しいフラグを使う
-                                                                // 一般的には CF_STATIC_OBJECT は 1, KINEMATIC は 2
-                                                                // createWallPhysicsBodyのフラグ設定が CF_KINEMATIC_OBJECT になっている可能性があるので注意
-                                                                // → 確認したところ、あなたの createWallPhysicsBody は `body.setCollisionFlags(body.getCollisionFlags() | 2);` となっており、
-                                                                //   これは通常 `CF_KINEMATIC_OBJECT` です。静的な壁であれば `CF_STATIC_OBJECT` (通常は1) が適切です。
-                                                                //   ここでは、mass = 0 かつ isKinematic = false の場合に CF_STATIC_OBJECT を設定します。
+            body.setCollisionFlags(body.getCollisionFlags() | 1); // CF_STATIC_OBJECT (Ammo.jsの定義
             if (!isKinematic) { // isKinematic でない質量0のオブジェクトは静的
                  body.setCollisionFlags(body.getCollisionFlags() | 1); // CF_STATIC_OBJECT
             }
@@ -296,17 +271,13 @@ export class PhysicsManager {
         // オプション: Three.jsオブジェクトを物理ボディに関連付ける (raycastなどで使用)
         body.threeMesh = threeObject; // PhysicsManager.findMeshByBodyPtr で使うために直接参照を保持
 
-        this.addRigidBodyToWorld(body); // ワールドへの追加と管理リストへの登録
+        this.addRigidBodyToWorld(body);
 
-        if (mass > 0 && !isKinematic) { // 動的オブジェクトのみアクティベーションを考慮
+        if (mass > 0 && !isKinematic) { 
              body.activate(); // スリープ状態になるのを防ぐため、初期状態でアクティブにする
         }
-
-        console.log(`Box physics body created for ${threeObject.name || 'Unnamed Object'} with mass: ${mass}, kinematic: ${isKinematic}`);
         return body;
     }
-
-
 
     removeRigidBody(body) {
         if (this.physicsWorld && body && this.AmmoAPI) {
@@ -325,15 +296,12 @@ export class PhysicsManager {
             }
 
             if (collisionShape) {
-                // ★★★ ここから修正 ★★★
                 let successfullyDestroyedMeshInterface = false;
                 try {
-                    // まず、btBvhTriangleMeshShape にキャストを試みる
                     const bvhShape = this.AmmoAPI.castObject(collisionShape, this.AmmoAPI.btBvhTriangleMeshShape);
 
                     if (bvhShape) {
-                        // キャストが成功した場合 (つまり、AmmoがこれをbtBvhTriangleMeshShapeとして認識した場合)
-                        // さらに getMeshInterface メソッドが存在するか確認
+
                         if (typeof bvhShape.getMeshInterface === 'function') {
                             console.log("PhysicsManager.removeRigidBody: Shape identified as btBvhTriangleMeshShape with getMeshInterface. Attempting to destroy meshInterface.");
                             const meshInterface = bvhShape.getMeshInterface();
@@ -351,14 +319,11 @@ export class PhysicsManager {
                         // console.log("PhysicsManager.removeRigidBody: Cast to btBvhTriangleMeshShape failed. Assuming not a btBvhTriangleMeshShape requiring special meshInterface destruction.");
                     }
                 } catch (e) {
-                    // castObject や getMeshInterface で予期せぬエラーが発生した場合のフォールバック
                     console.warn("PhysicsManager.removeRigidBody: Error during special shape destruction (e.g., meshInterface). Proceeding with normal shape destruction. Error:", e);
                 }
-                // ★★★ 修正ここまで ★★★
 
                 // 通常のコリジョンシェイプの破棄は必ず行う
                 this.AmmoAPI.destroy(collisionShape);
-                // console.log("PhysicsManager.removeRigidBody: Destroyed collisionShape itself.");
             }
         } else {
             console.warn("PhysicsManager.removeRigidBody: Attempted to remove body but physicsWorld, body, or AmmoAPI is not available.");
@@ -383,25 +348,10 @@ export class PhysicsManager {
         rayCallback.set_m_collisionFilterGroup(collisionFilterGroup);
         rayCallback.set_m_collisionFilterMask(collisionFilterMask);
 
-        // 特定のリジッドボディを無視する (ClosestRayResultCallback にはそのための直接的なフラグはないので、
-        // フィルタグループ/マスクで対応するか、コールバック内で判定する必要がある。
-        // ここでは、コールバック内で無視する簡易的な方法を示す。より良いのはフィルタグループ。)
-        // もし ignoreRigidBody が指定された場合、そのボディのポインタを保持しておく
         let ignoreCollisionObject = null;
         if (ignoreRigidBody) {
             ignoreCollisionObject = ignoreRigidBody.a; // Ammo.js の btRigidBody はラッパーなので、実際のポインタは .a にあることが多い
         }
-
-
-        // ClosestRayResultCallbackをカスタマイズして特定のボディを無視する例
-        // (ただし、これはAmmo.jsのビルドやバインディングによっては動作が異なる可能性あり、通常はフィルタグループ推奨)
-        // const originalNeedsCollision = rayCallback.needsCollision.bind(rayCallback);
-        // rayCallback.needsCollision = (proxy0) => {
-        //    if (ignoreRigidBody && proxy0.get_m_collisionObject() === ignoreRigidBody.a) { // .a はbtCollisionObjectポインタ
-        //        return false;
-        //    }
-        //    return originalNeedsCollision(proxy0);
-        // };
 
         this.physicsWorld.rayTest(rayFrom, rayTo, rayCallback);
         let result = { hasHit: false };
@@ -411,16 +361,10 @@ export class PhysicsManager {
             const hitNormal = rayCallback.get_m_hitNormalWorld();
             const collisionObject = rayCallback.get_m_collisionObject(); // btCollisionObjectのポインタ (型付き)
 
-            // 指定されたボディを無視する処理 (フィルタリングが理想だが、ここで最終チェック)
-            if (ignoreCollisionObject && collisionObject.a === ignoreCollisionObject) { // .a で実際のポインタ比較
-                // 無視対象だったのでヒットしなかったことにする
-                // (実際には、より遠い次のヒットを探す必要があるが、ClosestRayResultCallbackでは難しい)
-                // この場合、AllHitsRayResultCallback を使うか、フィルタリングを厳密に行う。
-                // ここでは簡易的に「無視対象ならヒットなし」とする。
+            if (ignoreCollisionObject && collisionObject.a === ignoreCollisionObject) { 
             } else {
                 const actualBody = this.AmmoAPI.btRigidBody.prototype.upcast(collisionObject);
-                // Three.js のメッシュを取得するには、作成時に userData に関連付けておく必要がある
-                const hitMesh = collisionObject.getCollisionFlags() === 2 ? null : this.findMeshByBodyPtr(collisionObject.a); // CF_STATIC_OBJECT は mesh を持たない想定
+                const hitMesh = collisionObject.getCollisionFlags() === 2 ? null : this.findMeshByBodyPtr(collisionObject.a);
 
                 result = {
                     hasHit: true,
@@ -440,10 +384,6 @@ export class PhysicsManager {
 
     // (ヘルパー) 物理ボディのポインタからThree.jsメッシュを見つける (要実装)
     findMeshByBodyPtr(bodyPtr) {
-        // PhysicsManagerで剛体とメッシュの対応を管理するか、
-        // 各btRigidBodyのuserDataにTHREE.MeshのIDや参照を保存しておく必要がある。
-        // 例: this.rigidBodies をイテレートして body.a === bodyPtr となるものを探し、
-        //     そのボディに関連付けられたメッシュを返す。
         for (const body of this.rigidBodies) {
             if (body.a === bodyPtr && body.threeMesh) { // body.threeMesh は独自に追加したプロパティ
                 return body.threeMesh;

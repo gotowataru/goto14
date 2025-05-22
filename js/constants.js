@@ -47,6 +47,7 @@ export const ZOOM_SPEED_FACTOR = 0.1; // カメラのズーム速度係数。マ
 
 // --- プロジェクタイル (ビーム・リング) 設定 ---
 export const BEAM_COLOR = 0xffff00; // ビームの色 (16進数カラーコード、例: 黄色)。
+export const BEAM_DAMAGE = 20; // ビームの攻撃力
 export const BEAM_RADIUS = 0.5 * MAZE_SCALE; // ビームの半径。ビームの太さを決定します。
 export const BEAM_LENGTH = 500 * MAZE_SCALE; // ビームの視覚的な長さ。
 export const BEAM_SPEED = 100 * MAZE_SCALE; // ビームの進行速度。
@@ -83,7 +84,7 @@ export const WALL_RESTITUTION = 0.5; // 壁の物理的な反発係数。
 // --- 球体 (Sphere) 設定 ---
 export const NUM_SPHERES = 30; // ゲーム内に生成する球体の数。
 export const MIN_SPHERE_RADIUS = 2.5 * MAZE_SCALE; // 生成される球体の最小半径。
-export const MAX_SPHERE_RADIUS = 10 * MAZE_SCALE; // 生成される球体の最大半径。
+export const MAX_SPHERE_RADIUS = 7 * MAZE_SCALE; // 生成される球体の最大半径。
 export const SPHERE_MASS = 20; // 球体の物理的な質量。
 export const SPHERE_FRICTION = 0.4; // 球体の物理的な摩擦係数。
 export const SPHERE_RESTITUTION = 0.6; // 球体の物理的な反発係数。
@@ -91,7 +92,8 @@ export const SPHERE_INITIAL_Y_OFFSET = 10 * MAZE_SCALE; // 球体の初期配置
 
 // --- Ramiel (正八面体) 設定 ---
 export const NUM_RAMIELS = 10; // ゲーム内に生成するラミエルの数。
-export const RAMIEL_SIZE = 8 * MAZE_SCALE; // 生成されるラミエルの基本サイズ (OctahedronGeometryの半径に相当)。
+export const RAMIEL_INITIAL_HP = 100; // ラミエルの初期HP
+export const RAMIEL_SIZE = 7 * MAZE_SCALE; // 生成されるラミエルの基本サイズ (OctahedronGeometryの半径に相当)。
 export const RAMIEL_CORE_RADIUS_FACTOR = 0.05; // ラミエルの中心核の半径（RAMIEL_SIZEに対する割合）。
 export const RAMIEL_COLOR = 0x1e90ff; // ラミエルの基本色 (青)。
 export const RAMIEL_CORE_COLOR = 0xff0000; // ラミエルの中心核の色 (赤)。
@@ -102,6 +104,36 @@ export const RAMIEL_MASS = 20000; // ラミエルの物理的な質量。
 export const RAMIEL_FRICTION = 1.0; // ラミエルの物理的な摩擦係数。
 export const RAMIEL_RESTITUTION = 0.0001; // ラミエルの物理的な反発係数。
 export const RAMIEL_INITIAL_Y_OFFSET = 10 * MAZE_SCALE; // ラミエルの初期配置時のY軸オフセット。
+
+export const RAMIEL_HP_BAR_ENABLED = true; // HPバー表示の有効/無効
+export const RAMIEL_HP_BAR_WIDTH = 4.5 * MAZE_SCALE;   // HPバーのワールド空間での幅
+export const RAMIEL_HP_BAR_HEIGHT = 0.5 * MAZE_SCALE;  // HPバーのワールド空間での高さ
+export const RAMIEL_HP_BAR_OFFSET_X = RAMIEL_SIZE * 0.0; // ラミエルローカルX軸オフセット (+で右)
+export const RAMIEL_HP_BAR_OFFSET_Y = RAMIEL_SIZE * 1.1; // ラミエルローカルY軸オフセット (+で上)
+export const RAMIEL_HP_BAR_OFFSET_Z = 0;                 // ラミエルローカルZ軸オフセット (通常0)
+
+export const RAMIEL_HP_BAR_CANVAS_WIDTH = 256;  // HPバー描画用Canvasの幅 (px)
+export const RAMIEL_HP_BAR_CANVAS_HEIGHT =64; // HPバー描画用Canvasの高さ (px)
+
+export const RAMIEL_HP_BAR_BG_COLOR = 'rgba(40, 40, 40, 0.8)';       // HPバーの背景色 (枠線や空HP部分)
+export const RAMIEL_HP_BAR_FG_COLOR_HIGH = 'rgba(0, 255, 0, 0.9)';   // HP高時のバーの色 (緑)
+export const RAMIEL_HP_BAR_FG_COLOR_MID = 'rgba(255, 255, 0, 0.9)';    // HP中時のバーの色 (黄)
+export const RAMIEL_HP_BAR_FG_COLOR_LOW = 'rgba(255, 0, 0, 0.9)';     // HP低時のバーの色 (赤)
+export const RAMIEL_HP_BAR_BORDER_COLOR = 'rgba(0, 0, 0, 0.9)'; // HPバーの枠線の色
+export const RAMIEL_HP_BAR_BORDER_WIDTH = 0.5; // HPバーの枠線の太さ (px)
+
+export const RAMIEL_HP_BAR_TEXT_LABEL = "第五使徒"; // HPバーの上に表示するテキスト
+export const RAMIEL_HP_BAR_TEXT_COLOR = 'rgba(255, 255, 255, 1.0)';  // テキストの色
+export const RAMIEL_HP_BAR_FONT_SIZE = 42; // テキストのフォントサイズ (px)
+export const RAMIEL_HP_BAR_FONT_FAMILY = 'Arial, sans-serif'; // テキストのフォントファミリー
+
+// Canvas内でのレイアウト用 (px単位)
+export const RAMIEL_HP_BAR_TEXT_AREA_HEIGHT = 48; // テキスト表示領域の高さ
+export const RAMIEL_HP_BAR_PADDING_TOP_TEXT = 1;  // テキスト上部のパディング
+export const RAMIEL_HP_BAR_PADDING_BOTTOM_TEXT = 1; // テキスト下部（バー上部との間）のパディング
+export const RAMIEL_HP_BAR_ACTUAL_BAR_HEIGHT = RAMIEL_HP_BAR_CANVAS_HEIGHT - RAMIEL_HP_BAR_TEXT_AREA_HEIGHT - RAMIEL_HP_BAR_PADDING_TOP_TEXT - RAMIEL_HP_BAR_PADDING_BOTTOM_TEXT - RAMIEL_HP_BAR_BORDER_WIDTH * 2;
+export const RAMIEL_HP_BAR_PADDING_HORIZONTAL = RAMIEL_HP_BAR_BORDER_WIDTH; // バーの左右パディング (枠線幅に合わせる)
+
 
 // --- Ramiel (正八面体)  破壊時 十字架エフェクト設定 ---
 export const RAMIEL_CROSS_EFFECT_ENABLED = true; // エフェクトの有効/無効
@@ -115,6 +147,32 @@ export const RAMIEL_CROSS_DURATION = 0.7;            // 表示時間 (秒)
 export const RAMIEL_CROSS_FADE_IN_DURATION = 0.2;   // フェードイン時間 (秒)
 export const RAMIEL_CROSS_FADE_OUT_DURATION = 0.3;  // フェードアウト時間 (秒)
 export const RAMIEL_CROSS_Y_OFFSET = RAMIEL_CROSS_HEIGHT / 2; // 地面からのオフセット（中心を地面に合わせるため）
+
+// --- Ramiel 板型 ATフィールド風エフェクト設定 ---
+export const RAMIEL_AT_FIELD_ENABLED = true;        // エフェクトの有効/無効
+export const RAMIEL_AT_FIELD_COLOR = 0xffa500;    // エフェクトの色 (オレンジ)
+export const RAMIEL_AT_FIELD_RADIUS = RAMIEL_SIZE * 1.5; // 正八角形の外接円の半径 (ラミエルのサイズに比例)
+export const RAMIEL_AT_FIELD_INITIAL_OPACITY = 0.7; // 初期不透明度
+export const RAMIEL_AT_FIELD_DURATION = 0.5;      // 表示時間 (秒)
+export const RAMIEL_AT_FIELD_FADE_OUT_START_RATIO = 0.3; // 表示時間のうち、どの割合からフェードアウトを開始するか (0.0 - 1.0)
+// 例: 0.3なら最初の30%は最大不透明度、残りの70%でフェードアウト          
+// export const RAMIEL_AT_FIELD_THICKNESS = 0.1 * MAZE_SCALE; // (オプション) もし厚みを持たせる場合
+export const RAMIEL_AT_FIELD_OFFSET_FROM_RAMIEL = RAMIEL_SIZE * 0.8 + RAMIEL_AT_FIELD_RADIUS * 0.3; // ラミエルの半径 + ATフィールドの半径の少し外側 (重なりを防ぐ)
+
+
+// --- Ramiel 波紋 ATフィールド風エフェクト設定 ---
+export const RAMIEL_AT_FIELD_IS_WAVE_EFFECT = true; // trueなら波紋、falseなら従来の単一板 (切り替え用)
+
+export const RAMIEL_AT_FIELD_WAVE_NUM_RINGS = 5;         // 波紋を構成するリングの数
+export const RAMIEL_AT_FIELD_WAVE_RING_DURATION = 0.6;  // 各リングの出現から消滅までの時間 (秒)
+export const RAMIEL_AT_FIELD_WAVE_SPAWN_INTERVAL = 0.15; // 各リングが出現する時間間隔 (秒)
+export const RAMIEL_AT_FIELD_WAVE_START_SCALE = 0.05;   // リングの初期スケール (RAMIEL_AT_FIELD_RADIUSに対する割合)
+export const RAMIEL_AT_FIELD_WAVE_END_SCALE_FACTOR = 1.0; // リングの最終スケール (RAMIEL_AT_FIELD_RADIUSに対する割合)
+// リングの「太さ」は、RingGeometryのinnerRadiusとouterRadiusの差で表現します。
+// 最大スケール時の太さを基準にジオメトリを定義し、それを拡大縮小します。
+export const RAMIEL_AT_FIELD_WAVE_RING_THICKNESS_RATIO = 0.1; // リングの外半径に対する太さの割合 (例: 0.1なら外半径の10%が太さ)
+export const RAMIEL_AT_FIELD_WAVE_FADE_OUT_START_RATIO_PER_RING = 0.5; // 各リングの寿命のうち、どの割合からフェードアウトを開始するか
+
 
 // --- 太陽と指向性光源の設定 ---
 export const SUN_ENABLED = true; // 太陽オブジェクトを表示するかどうか
@@ -148,3 +206,27 @@ export const BGM_LOOP = true;
 export const SFX_BEAM_PATH = './audio/beam_01.mp3';
 export const SFX_BEAM_VOLUME = 0.04;
 export const SFX_BEAM_LOOP = false; // 効果音は通常ループしない
+
+// --- Enemy: Enemy_001 設定 ---
+export const ENEMY_001_NUM_INSTANCES = 1; // 初期配置数 (テスト用に1体)
+export const ENEMY_001_MODEL_PATH = './models/enemy_001_idol.fbx';
+export const ENEMY_001_ANIMATIONS = {
+    idle: './models/量産型.fbx', // アイドルアニメーションはモデルファイル自体に含まれる
+    run: './models/enemy_001_run.fbx',
+    attack: './models/enemy_001_attack.fbx'
+};
+export const ENEMY_001_INITIAL_POSITIONS = [ // 各インスタンスの初期位置 (配列で複数指定可能)
+    new THREE.Vector3(200, 100, -100) // 例: (x, y, z) - Yはキャラクター同様、地面からの高さを調整
+    // , new THREE.Vector3(-5, 1, -5) // 複数配置する場合
+];
+export const ENEMY_001_SCALE = 1.0;
+export const ENEMY_001_BASE_HEIGHT = 2.0; // モデルの基準身長
+export const ENEMY_001_BASE_RADIUS = 0.5; // モデルの基準半径
+export const ENEMY_001_HEIGHT = ENEMY_001_BASE_HEIGHT * ENEMY_001_SCALE;
+export const ENEMY_001_RADIUS = ENEMY_001_BASE_RADIUS * ENEMY_001_SCALE;
+export const ENEMY_001_MASS = 50;
+export const ENEMY_001_FRICTION = 0.5;
+export const ENEMY_001_RESTITUTION = 0.1;
+export const ENEMY_001_HP = 50;
+export const ENEMY_001_ATTACK_DAMAGE = 5;
+export const ENEMY_001_LOCAL_FORWARD = new THREE.Vector3(0, 0, 1); // モデルの前方方向
