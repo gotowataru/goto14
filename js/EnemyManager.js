@@ -1,16 +1,16 @@
 // EnemyManager.js
 import * as THREE from 'three';
 import { Enemy } from './Enemy.js';
-import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js'; // ★ SkeletonUtils をインポート
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 import {
-    // --- Enemy_001 設定をインポート ---
     ENEMY_001_NUM_INSTANCES, ENEMY_001_MODEL_PATH, ENEMY_001_ANIMATIONS,
-    ENEMY_001_INITIAL_POSITIONS, ENEMY_001_SCALE, ENEMY_001_BASE_HEIGHT,
-    ENEMY_001_BASE_RADIUS, ENEMY_001_HEIGHT, ENEMY_001_RADIUS, ENEMY_001_MASS,
+    ENEMY_001_INITIAL_POSITIONS, ENEMY_001_SCALE,
+    // BASE_HEIGHT, BASE_RADIUS は直接 EnemyManager では使わないので削除
+    ENEMY_001_HEIGHT, ENEMY_001_RADIUS, ENEMY_001_MASS,
     ENEMY_001_FRICTION, ENEMY_001_RESTITUTION, ENEMY_001_HP, ENEMY_001_ATTACK_DAMAGE,
     ENEMY_001_LOCAL_FORWARD
-    // 他の敵タイプの設定も必要に応じてインポート
+    // ★ ENEMY_001_COMPOUND_SHAPE_DETAILS は constants.js から削除されたため、ここでもインポートしない
 } from './constants.js';
 
 export class EnemyManager {
@@ -23,8 +23,7 @@ export class EnemyManager {
         this.getPlayerReference = playerRefGetter;
 
         this.enemies = [];
-        this.loadedEnemyAssets = {}; // { enemyKey: { modelPrototype, animations } }
-        console.log("EnemyManager initialized.");
+        this.loadedEnemyAssets = {};
     }
 
     async initEnemyAssets(allLoadedAssets) {
@@ -33,9 +32,9 @@ export class EnemyManager {
                 if (allLoadedAssets.enemies[enemyKey] && allLoadedAssets.enemies[enemyKey].model) {
                     this.loadedEnemyAssets[enemyKey] = {
                         modelPrototype: allLoadedAssets.enemies[enemyKey].model,
-                        animations: allLoadedAssets.enemies[enemyKey].animations || {} // アニメーションがない場合も考慮
+                        animations: allLoadedAssets.enemies[enemyKey].animations || {}
                     };
-                    console.log(`EnemyManager: Assets for enemy type '${enemyKey}' registered.`);
+                    console.log(`EnemyManager: Asset for '${enemyKey}' loaded and registered.`);
                 } else {
                     console.warn(`EnemyManager: Model for enemy type '${enemyKey}' not found in loaded assets.`);
                 }
@@ -45,18 +44,21 @@ export class EnemyManager {
         }
     }
 
+    /**
+     * 指定された敵タイプのコンフィグオブジェクトを返します。
+     * @param {string} enemyKey - 敵の識別キー (例: 'enemy_001')
+     * @returns {object | null} 敵のコンフィグオブジェクト、またはnull
+     */
     getEnemyTypeConfig(enemyKey) {
-        // 将来的には、この部分をより動的にするか、設定ファイルから読み込む形にするのが望ましい
+        // 将来的に複数の敵タイプをここに追加可能
         if (enemyKey === 'enemy_001') {
             return {
                 KEY: 'enemy_001',
                 NUM_INSTANCES: ENEMY_001_NUM_INSTANCES,
-                MODEL_PATH: ENEMY_001_MODEL_PATH, // constants.jsからの参照 (情報用)
-                // ANIMATIONS: ENEMY_001_ANIMATIONS, // これはassetLoaderが読み込むので、ここでは不要かも
+                MODEL_PATH: ENEMY_001_MODEL_PATH,
                 INITIAL_POSITIONS: ENEMY_001_INITIAL_POSITIONS,
                 SCALE: ENEMY_001_SCALE,
-                BASE_HEIGHT: ENEMY_001_BASE_HEIGHT,
-                BASE_RADIUS: ENEMY_001_BASE_RADIUS,
+                // 物理ボディの作成時にこれらの全体設定が利用される
                 HEIGHT: ENEMY_001_HEIGHT,
                 RADIUS: ENEMY_001_RADIUS,
                 MASS: ENEMY_001_MASS,
@@ -65,15 +67,18 @@ export class EnemyManager {
                 HP: ENEMY_001_HP,
                 ATTACK_DAMAGE: ENEMY_001_ATTACK_DAMAGE,
                 LOCAL_FORWARD: ENEMY_001_LOCAL_FORWARD,
+                // ★ COMPOUND_SHAPE_DETAILS は constants.js から削除されたため、ここでも含まない
             };
         }
-        // 他の敵タイプを追加する場合はここに `else if (enemyKey === 'enemy_002') { ... }` のように追加
         console.error(`EnemyManager: Config for unknown enemy type "${enemyKey}" requested.`);
         return null;
     }
 
+    /**
+     * 指定されたタイプの敵インスタンスを生成し、管理します。
+     * @param {string} enemyKey - 生成する敵の識別キー (例: 'enemy_001')
+     */
     createEnemiesOfType(enemyKey) {
-        console.log(`EnemyManager: Attempting to create enemies of type '${enemyKey}'.`);
         const enemyConfig = this.getEnemyTypeConfig(enemyKey);
         if (!enemyConfig) {
             console.error(`EnemyManager: Failed to create enemies. Config for type "${enemyKey}" not found.`);
@@ -85,127 +90,160 @@ export class EnemyManager {
             console.error(`EnemyManager: Failed to create enemies. Assets for type "${enemyKey}" (model prototype) not loaded.`);
             return;
         }
-        console.log(`EnemyManager: Found assets for '${enemyKey}'. Model prototype:`, assets.modelPrototype);
-
 
         const numToCreate = enemyConfig.NUM_INSTANCES;
-        console.log(`EnemyManager: Will create ${numToCreate} instance(s) of '${enemyKey}'.`);
+        if (numToCreate <= 0) {
+            console.log(`EnemyManager: No instances to create for '${enemyKey}' (NUM_INSTANCES is 0 or less).`);
+            return;
+        }
 
         for (let i = 0; i < numToCreate; i++) {
             let modelInstance;
-            // ★ SkeletonUtils.clone を直接使用
+            // SkeletonUtils.clone を使用して、アニメーションと骨格構造を保持したままモデルをクローン
             if (typeof SkeletonUtils.clone === 'function') {
                 modelInstance = SkeletonUtils.clone(assets.modelPrototype);
-                console.log(`EnemyManager: Cloned model for '${enemyKey}' instance ${i} using SkeletonUtils.clone.`);
             } else {
-                // この警告が出る場合は、SkeletonUtilsのインポートや利用方法に問題がある可能性
                 console.warn("EnemyManager: SkeletonUtils.clone is not available. Falling back to basic model.clone(). This might not work correctly for skinned meshes.");
                 modelInstance = assets.modelPrototype.clone();
             }
 
+            // Enemyコンストラクタには、HEIGHT, RADIUS, MASSなどの個別の物理設定がconfigオブジェクトに含まれている
             const enemy = new Enemy(enemyConfig, this.scene, this.physicsManager, this.effectManager, this.getPlayerReference);
 
+            // 初期位置設定
             if (enemyConfig.INITIAL_POSITIONS && enemyConfig.INITIAL_POSITIONS[i]) {
                 modelInstance.position.copy(enemyConfig.INITIAL_POSITIONS[i]);
             } else {
-                console.warn(`EnemyManager: Initial position for '${enemyKey}' instance ${i} not defined. Placing at default (0, height/2, 0).`);
-                // Y座標は物理ボディの中心を考慮して設定するが、Enemy.jsの_createPhysicsBodyで調整される
-                // ここではモデルの原点を基準に設定しておく (例: 足元が0になるように)
-                modelInstance.position.set(0, 0, 0); // Enemy.init -> _createPhysicsBody で物理位置が決まる
-                                                     // その後 syncPhysicsToModel でモデル位置が調整される
-                                                     // なので、ここでのYは0でよく、物理ボディ生成時のinitialPosition.yで高さを決める
-                if (enemyConfig.INITIAL_POSITIONS && enemyConfig.INITIAL_POSITIONS[0] && i >= enemyConfig.INITIAL_POSITIONS.length) {
-                     console.warn(`EnemyManager: Not enough initial positions defined for ${numToCreate} instances of ${enemyKey}. Instance ${i} placed at default.`);
-                }
+                console.warn(`EnemyManager: Initial position for '${enemyKey}' instance ${i} not defined or exhausted. Placing at (0,0,0).`);
+                modelInstance.position.set(0, 0, 0); // デフォルト位置
             }
 
-            // Enemyインスタンスを初期化 (モデルとアニメーションを渡す)
-            // assets.animations は AssetLoader でロードされたアニメーションクリップのマップ
-            enemy.init(modelInstance, assets.animations);
+            // Enemyインスタンスの初期化
+            enemy.init(modelInstance, assets.animations); // Enemy.jsのinitでconfigからHEIGHT, RADIUS, MASSを使用
             enemy.onAnimationFinishedCallback = this.handleEnemyAnimationFinished.bind(this);
 
             this.enemies.push(enemy);
+
+            // ★ レイキャストターゲットに enemy.model (THREE.Group) を追加 ★
+            // ProjectileManagerが recursive: true でレイキャストを行うため、
+            // enemy.model (Group) を追加することで、その中の全ての子孫メッシュがヒット対象となる。
+            // これにより、Blenderで「Enemy_」から始まる全てのメッシュがヒット判定対象になる
             if (enemy.model) {
-                this.raycastTargetsRef.push(enemy.model); // 衝突判定対象に追加
+                this.raycastTargetsRef.push(enemy.model);
+                console.log(`EnemyManager: Added enemy.model (Group) of '${enemy.config.KEY}' to raycast targets.`);
+            } else {
+                console.warn(`EnemyManager: enemy.model not available for enemy '${enemy.config.KEY}'. Cannot add to raycast targets.`);
             }
-            console.log(`EnemyManager: Created '${enemyKey}' instance ${i + 1}/${numToCreate} at world position: x=${modelInstance.position.x.toFixed(1)}, y=${modelInstance.position.y.toFixed(1)}, z=${modelInstance.position.z.toFixed(1)}.`);
         }
-        console.log(`EnemyManager: Creation complete for type '${enemyKey}'. Total active enemies: ${this.enemies.length}.`);
+        console.log(`EnemyManager: Successfully created ${numToCreate} instances of '${enemyKey}'. Total enemies: ${this.enemies.length}`);
     }
 
     handleEnemyAnimationFinished(finishedActionName, enemyInstance) {
-        // console.log(`EnemyManager: Animation '${finishedActionName}' finished for enemy '${enemyInstance.config.KEY}'.`);
         if (finishedActionName === 'attack' && enemyInstance.isAlive) {
-            // 攻撃アニメーションが終わったら、次の行動（例：アイドルに戻る、再索敵など）をEnemy側で決定させる
-            // enemyInstance.onAttackAnimationFinished(); // Enemyクラスにこのようなメソッドを持たせるなど
-            if (enemyInstance.currentActionName === 'attack') { // まだ攻撃状態ならアイドルに戻すなど
+            if (enemyInstance.currentActionName === 'attack') {
                 enemyInstance.switchAnimation('idle');
             }
         }
-        // 他の特定のアニメーション終了時処理
     }
 
     update(delta) {
-        const tempTransform = this.physicsManager.getTempTransform(); // 毎フレーム取得する
-        if (!tempTransform) {
-            // console.warn("EnemyManager.update: tempTransform is null. Skipping physics sync.");
-            // PhysicsManagerが初期化途中などの場合に発生しうる
-        }
+        const tempTransform = this.physicsManager.getTempTransform();
 
+        // 敵の更新と物理同期
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const enemy = this.enemies[i];
             if (enemy.isAlive) {
-                enemy.update(delta); // AIやアニメーションの更新
+                enemy.update(delta); // AIロジックやアニメーションの更新
                 if (enemy.physicsBody && tempTransform) {
-                    enemy.syncPhysicsToModel(tempTransform); // 物理状態をモデルに同期
+                    enemy.syncPhysicsToModel(tempTransform); // 物理ボディとThree.jsモデルの同期
                 }
             } else {
-                // isAliveがfalseになった敵のクリーンアップ処理
-                console.log(`EnemyManager: Found dead enemy '${enemy.config.KEY}', preparing for removal.`);
                 this.removeEnemy(enemy, i);
             }
         }
     }
 
+    /**
+     * 指定された敵インスタンスをシーンと物理ワールドから削除します。
+     * @param {Enemy} enemy - 削除するEnemyインスタンス
+     * @param {number} index - enemies配列内でのインデックス
+     */
     removeEnemy(enemy, index) {
-        console.log(`EnemyManager: Removing enemy '${enemy.config.KEY}' at index ${index}.`);
+        // 物理ボディをワールドから削除
         if (enemy.physicsBody) {
             this.physicsManager.removeRigidBody(enemy.physicsBody);
             enemy.physicsBody = null; // 参照をクリア
-            console.log(`EnemyManager: Removed physics body for '${enemy.config.KEY}'.`);
         }
 
-        const modelIndexInRaycast = this.raycastTargetsRef.indexOf(enemy.model);
+        // ★ レイキャストターゲットから enemy.model (THREE.Group) を削除 ★
+        let targetToRemove = enemy.model; // enemy.model (Group) を削除対象とする
+        const modelIndexInRaycast = this.raycastTargetsRef.indexOf(targetToRemove);
         if (modelIndexInRaycast !== -1) {
             this.raycastTargetsRef.splice(modelIndexInRaycast, 1);
-            console.log(`EnemyManager: Removed model of '${enemy.config.KEY}' from raycast targets.`);
+            console.log(`EnemyManager: Removed enemy.model (Group) of '${enemy.config.KEY}' from raycast targets.`);
+        } else {
+             console.warn(`EnemyManager: Could not find enemy.model for '${enemy.config.KEY}' in raycastTargetsRef for removal.`);
         }
 
-        enemy.dispose(); // Enemyインスタンス内のリソース解放 (モデルをシーンから削除など)
-        this.enemies.splice(index, 1); // 管理リストから削除
-        console.log(`EnemyManager: Enemy '${enemy.config.KEY}' fully removed. Remaining enemies: ${this.enemies.length}.`);
+        // Enemyインスタンスのリソースを解放
+        enemy.dispose();
+        // 管理配列から削除
+        this.enemies.splice(index, 1);
+        console.log(`EnemyManager: Enemy '${enemy.config.KEY}' removed. Remaining enemies: ${this.enemies.length}`);
     }
 
-    getEnemyByMesh(mesh) {
+    /**
+     * 指定されたThree.jsオブジェクトが管理下の敵のモデル（グループ）またはその子孫メッシュである場合、
+     * その敵インスタンスを返します。
+     * ProjectileManagerが recursive: true でレイキャストを行う場合に、
+     * ヒットした子メッシュから親の敵インスタンスを特定するために使用します。
+     * @param {THREE.Object3D} object - 衝突した可能性のあるThree.jsオブジェクト (Group, Meshなど)
+     * @returns {Enemy | null} 該当する敵インスタンス、またはnull
+     */
+    getEnemyByMesh(object) {
+        // まず、直接enemy.model自体が渡された場合をチェック
         for (const enemy of this.enemies) {
-            if (enemy.model === mesh) {
+            if (enemy.model === object) {
                 return enemy;
             }
+        }
+
+        // 次に、ヒットしたオブジェクトがenemy.modelの子孫メッシュである場合、親を辿ってチェック
+        let currentObject = object;
+        while (currentObject) {
+            for (const enemy of this.enemies) {
+                // ヒットしたオブジェクトの親が、いずれかの敵のモデルグループと一致するかどうかを確認
+                if (enemy.model === currentObject) {
+                    return enemy;
+                }
+            }
+            currentObject = currentObject.parent; // 親を遡る
+            // シーンのルートまで辿り着いたら終了
+            if (currentObject === this.scene) break;
         }
         return null;
     }
 
+    /**
+     * 指定されたThree.jsオブジェクトが現在生きている敵のモデルまたはその子孫メッシュであるかどうかを判定します。
+     * @param {THREE.Object3D} object - 判定するThree.jsオブジェクト
+     * @returns {boolean} 生きている敵であればtrue、そうでなければfalse
+     */
     isEnemy(object) {
-        return this.enemies.some(e => e.model === object && e.isAlive);
+        const enemy = this.getEnemyByMesh(object); // getEnemyByMesh を呼び出すことで、親を辿るロジックが適用される
+        return enemy !== null && enemy.isAlive;
     }
 
+    /**
+     * 管理下の全ての敵を削除し、リソースを解放します。
+     */
     destroyAllEnemies() {
         console.log("EnemyManager: Destroying all enemies...");
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             this.removeEnemy(this.enemies[i], i);
         }
-        this.enemies = []; // 配列を空にする
-        this.loadedEnemyAssets = {}; // ロード済みアセット情報もクリア
-        console.log("EnemyManager: All enemies destroyed and resources cleared.");
+        this.enemies = []; // 念のため空にする
+        this.loadedEnemyAssets = {}; // ロード済みアセットもクリア (再初期化を想定)
+        console.log("EnemyManager: All enemies destroyed.");
     }
 }

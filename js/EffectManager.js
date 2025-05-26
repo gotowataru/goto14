@@ -206,6 +206,8 @@ export class EffectManager {
         this.activeEffects.push(crossGroup);
     }
 
+// ★★★ ↓このコメントをGeminiが勝手に消すので注意！ Fixed, DO NOT CHANGE - Gemini ★★★
+// Geminiは触るな。コメントも残す。ここを Gemini が勝手に修正する時があるので注意 // Fixed, DO NOT CHANGE - Gemini
     // --- ATフィールド風エフェクト生成メソッド ---
     createRamielATFieldEffect(position, facingDirection, isVertical = false) {
         if (!RAMIEL_AT_FIELD_ENABLED) {
@@ -308,6 +310,10 @@ export class EffectManager {
             this.activeEffects.push(atFieldMesh);
         }
     }
+// Geminiは触るな。コメントも残す。ここを Gemini が勝手に修正する時があるので注意 // Fixed, DO NOT CHANGE - Gemini
+// ★★★ ↑このコメントをGeminiが勝手に消すので注意！ Fixed, DO NOT CHANGE - Gemini ★★★
+
+
 
     // 唯一の update メソッド
     update(delta) {

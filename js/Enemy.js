@@ -3,13 +3,14 @@ import * as THREE from 'three';
 
 export class Enemy {
     constructor(config, scene, physicsManager, effectManager, playerRefGetter) {
-        this.config = config; // 敵の種類ごとの設定 (constants.js から)
+        this.config = config; // EnemyManagerから渡された敵の設定オブジェクト全体を保持 (HEIGHT, RADIUS, MASSなどが含まれる)
         this.scene = scene;
         this.physicsManager = physicsManager;
-        this.effectManager = effectManager; // 将来的なエフェクト用
-        this.getPlayerReference = playerRefGetter; // プレイヤーへの参照を取得する関数
+        this.effectManager = effectManager;
+        this.getPlayerReference = playerRefGetter;
 
-        this.model = null; // AssetLoaderからロードされたモデルのクローン
+        this.model = null;
+        this.mainMesh = null; // メインメッシュを保持するプロパティ
         this.mixer = null;
         this.actions = {};
         this.currentActionName = null;
@@ -19,27 +20,46 @@ export class Enemy {
         this.isAlive = true;
         this.localForwardDirection = this.config.LOCAL_FORWARD.clone();
 
-        // アニメーション終了時のコールバック (Character.jsと同様)
-        this.onAnimationFinishedCallback = null;
+        this.onAnimationFinishedCallback = null; // アニメーション終了時のコールバック
     }
 
-    // EnemyManagerからモデルとアニメーションを受け取って初期化
+    /**
+     * 敵のモデルとアニメーションを初期化し、シーンに追加します。
+     * @param {THREE.Group} modelInstance - 読み込まれた敵の3Dモデルインスタンス (通常はクローンされたもの)
+     * @param {object} animations - 敵のアニメーションクリップのマップ
+     */
     init(modelInstance, animations) {
-        this.model = modelInstance; // これはクローンされたインスタンス
-        this.model.scale.setScalar(this.config.SCALE); // スケール適用
+        this.model = modelInstance;
+        this.model.scale.setScalar(this.config.SCALE);
         this.scene.add(this.model);
+
+        // メインメッシュを特定してプロパティに保持
+        this.mainMesh = null;
+        this.model.traverse(child => {
+            if (child.isSkinnedMesh && !this.mainMesh) {
+                this.mainMesh = child;
+            } else if (child.isMesh && child.name.startsWith('Enemy_') && !this.mainMesh) {
+                this.mainMesh = child;
+            }
+            if (child.isMesh) { // castShadow / receiveShadow を念のため再設定
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+
+        if (!this.mainMesh) {
+            console.warn(`Enemy (${this.config.MODEL_PATH}): Main mesh (SkinnedMesh or starting with 'Enemy_') not found in model. Fallback to using top-level model group for internal reference.`);
+        }
 
         this.mixer = new THREE.AnimationMixer(this.model);
         this._setupAnimations(animations);
 
-        // 物理ボディの作成 (位置はEnemyManagerが設定する)
-        // 初期位置は、EnemyManagerがこのEnemyインスタンスを作成する際に、
-        // modelInstance.position に設定してからこのinitを呼ぶ想定
+        // 物理ボディの作成 (引数を元の形に戻す)
         this._createPhysicsBody(
-            this.model.position, // EnemyManagerが配置した位置
-            this.config.HEIGHT,
-            this.config.RADIUS,
-            this.config.MASS
+            this.model.position.clone(),
+            this.config.HEIGHT, // ★ HEIGHT を直接渡す
+            this.config.RADIUS, // ★ RADIUS を直接渡す
+            this.config.MASS    // ★ MASS を直接渡す
         );
 
         if (this.mixer) {
@@ -47,41 +67,50 @@ export class Enemy {
         }
     }
 
+    /**
+     * アニメーションクリップを設定し、アクションを作成します。
+     * @param {object} animationClips - アニメーションクリップのマップ
+     */
     _setupAnimations(animationClips) {
         if (!this.mixer) return;
+
         for (const name in animationClips) {
             const clip = animationClips[name];
             if (clip instanceof THREE.AnimationClip) {
                 this.actions[name] = this.mixer.clipAction(clip);
                 if (name === 'idle' || name === 'run') {
                     this.actions[name].setLoop(THREE.LoopRepeat);
-                } else { // attack など
+                } else {
                     this.actions[name].setLoop(THREE.LoopOnce);
                     this.actions[name].clampWhenFinished = true;
                 }
             } else {
-                console.warn(`Enemy (${this.config.MODEL_PATH}): Animation clip for "${name}" is not valid. Clip:`, clip);
+                console.warn(`Enemy (${this.config.MODEL_PATH}): Animation clip for "${name}" is not a valid THREE.AnimationClip or is missing.`);
             }
         }
+
         if (this.actions['idle']) {
             this.switchAnimation('idle');
         } else {
-            console.error(`Enemy (${this.config.MODEL_PATH}): 'idle' animation not found.`);
+            console.warn(`Enemy (${this.config.MODEL_PATH}): 'idle' animation action not found.`);
         }
     }
 
-    _createPhysicsBody(initialPosition, height, radius, mass) {
+    /**
+     * 敵の物理ボディを作成し、PhysicsManagerに登録します。
+     * @param {THREE.Vector3} initialPosition - 物理ボディの初期位置
+     * @param {number} height - キャラクターの高さ
+     * @param {number} radius - キャラクターの半径
+     * @param {number} mass - キャラクターの質量
+     */
+    _createPhysicsBody(initialPosition, height, radius, mass) { // ★ 引数を元の形に戻す
         if (!this.physicsManager || !this.physicsManager.isInitialized()) {
             console.error("Enemy: PhysicsManager not ready. Cannot create physics body.");
             return;
         }
-        // Characterと同様にカプセルを使うか、Boxを使うか選択
-        // 今回は Character と同様のカプセル形状を想定
-        // もしBoxなら physicsManager.createBoxPhysicsBody を使う
-        const capsuleRadius = radius;
-        const capsuleCylinderHeight = Math.max(0.01, height - (2 * capsuleRadius));
 
-        this.physicsBody = this.physicsManager.createCharacterPhysicsBody( // または専用のcreateEnemyPhysicsBody
+        // PhysicsManagerのcreateCharacterPhysicsBodyを、カプセル形状用の引数で呼び出す
+        this.physicsBody = this.physicsManager.createCharacterPhysicsBody(
             initialPosition,
             height,
             radius,
@@ -89,36 +118,42 @@ export class Enemy {
         );
 
         if (this.physicsBody) {
-            this.physicsBody.setAngularFactor(new this.physicsManager.AmmoAPI.btVector3(0, 1, 0));
-            this.physicsBody.setFriction(this.config.FRICTION);
-            this.physicsBody.setRestitution(this.config.RESTITUTION);
-            // 必要に応じて衝突グループやマスクを設定
-            // this.physicsManager.physicsWorld.removeRigidBody(this.physicsBody); // 一旦削除して
-            // this.physicsManager.addRigidBodyToWorld(this.physicsBody, ENEMY_COLLISION_GROUP, ENEMY_COLLISION_MASK); // 再追加
-
-            this.syncPhysicsToModel(this.physicsManager.getTempTransform());
+            this.physicsBody.setAngularFactor(new this.physicsManager.AmmoAPI.btVector3(0, 1, 0)); // Y軸回転のみ
+            this.physicsBody.setFriction(this.config.FRICTION); // configから摩擦を設定
+            this.physicsBody.setRestitution(this.config.RESTITUTION); // configから反発を設定
+            this.syncPhysicsToModel(this.physicsManager.getTempTransform()); // 初期状態での物理ボディとモデルの同期
         } else {
             console.error(`Enemy (${this.config.MODEL_PATH}): Failed to create physics body.`);
         }
     }
 
+    /**
+     * アニメーション終了時に呼び出される内部ハンドラ。
+     * @param {Event} event - アニメーション終了イベント
+     */
     _onAnimationFinished(event) {
         const finishedAction = event.action;
         const finishedActionName = Object.keys(this.actions).find(name => this.actions[name] === finishedAction);
 
         if (this.onAnimationFinishedCallback) {
-            this.onAnimationFinishedCallback(finishedActionName, this); // どの敵か分かるようにthisを渡す
+            this.onAnimationFinishedCallback(finishedActionName, this);
         }
-        // 例: 攻撃アニメーションが終わったらアイドルに戻るなど
+
         if (finishedActionName === 'attack') {
             this.switchAnimation('idle');
         }
     }
 
+    /**
+     * アニメーションを切り替えます。
+     * @param {string} name - 切り替えるアニメーションの名前
+     * @param {number} [crossFadeDuration=0.2] - クロスフェードの秒数
+     */
     switchAnimation(name, crossFadeDuration = 0.2) {
         if (this.currentActionName === name && (name === 'idle' || name === 'run')) return;
+        
         if (!this.mixer || !this.actions[name]) {
-            // console.warn(`Enemy (${this.config.MODEL_PATH}): Animation "${name}" not found.`);
+            console.warn(`Enemy (${this.config.MODEL_PATH}): Animation "${name}" not found.`);
             return;
         }
 
@@ -139,83 +174,78 @@ export class Enemy {
         this.currentActionName = name;
     }
 
+    /**
+     * 敵のAIロジック、アニメーションの更新など、毎フレームの処理を行います。
+     * @param {number} delta - 前フレームからの経過時間 (秒)
+     */
     update(delta) {
         if (!this.isAlive || !this.model || !this.mixer) return;
 
-        // --- AIロジック (今回はプレースホルダー) ---
-        // const player = this.getPlayerReference ? this.getPlayerReference() : null;
-        // if (player) {
-        //     const distanceToPlayer = this.model.position.distanceTo(player.model.position);
-        //     // 索敵範囲、攻撃範囲などに基づいて行動を決定
-        // }
-
-        // --- アニメーションの更新 (AIの結果に応じて) ---
-        // とりあえずアイドルを再生し続ける
-        if (this.currentActionName !== 'idle' && this.currentActionName !== 'attack') { // 攻撃中は邪魔しない
+        // AIロジックは今後ここに実装されます
+        if (this.currentActionName !== 'idle' && this.currentActionName !== 'attack') {
              this.switchAnimation('idle');
         }
-
 
         this.mixer.update(delta);
     }
 
+    /**
+     * Ammo.jsの物理ボディの位置・回転をThree.jsのモデルに同期します。
+     * @param {Ammo.btTransform} tempTransform - Ammo.jsの一時的な変換オブジェクト (メモリ割り当て削減のため)
+     */
     syncPhysicsToModel(tempTransform) {
         if (this.model && this.physicsBody && tempTransform) {
             const motionState = this.physicsBody.getMotionState();
             if (motionState) {
                 motionState.getWorldTransform(tempTransform);
                 const p = tempTransform.getOrigin();
-                // Characterと同様のオフセット調整
-                this.model.position.set(p.x(), p.y() - this.config.HEIGHT / 2, p.z());
-                // 回転も同期する場合 (Characterは移動方向でモデル回転、物理は回転制限あり)
-                // const q = tempTransform.getRotation();
-                // this.model.quaternion.set(q.x(), q.y(), q.z(), q.w());
+                // 物理ボディの原点（カプセルの中心）から、Three.jsモデルの原点（足元）へのオフセットを適用
+                // p.y() は物理ボディの重心のY座標
+                // this.config.HEIGHT / 2 は、モデルの原点（足元）からその高さの中心までの距離
+                this.model.position.set(p.x(), p.y() - this.config.HEIGHT / 2, p.z()); // ★ Yオフセット計算を元の形に戻す
             }
         }
     }
 
+    /**
+     * 敵にダメージを適用します。
+     * @param {number} amount - 与えるダメージ量
+     * @returns {boolean} 敵が死亡した場合はtrue、そうでなければfalse
+     */
     applyDamage(amount) {
         if (!this.isAlive) return false;
         this.hp -= amount;
-        console.log(`Enemy (${this.config.MODEL_PATH}) took ${amount} damage, HP: ${this.hp}`);
         if (this.hp <= 0) {
             this.hp = 0;
             this.isAlive = false;
             this.die();
-            return true; // 破壊された
+            return true;
         }
-        return false; // まだ生きている
+        return false;
     }
 
+    /**
+     * 敵が死亡した際の処理を行います。
+     */
     die() {
-        console.log(`Enemy (${this.config.MODEL_PATH}) died.`);
-        // 死亡アニメーション再生
-        // if (this.actions['die']) this.switchAnimation('die');
-        // else this.switchAnimation('idle'); // フォールバック
-
-        // 死亡エフェクト (EffectManager を使用)
-        if (this.effectManager) {
+        console.log(`Enemy (${this.config.KEY}) died.`); 
+        if (this.effectManager && this.model) {
             this.effectManager.createSparkExplosion(this.model.position.clone(), new THREE.Color(0xff8888));
             this.effectManager.createDebrisExplosion(this.model.position.clone(), new THREE.Color(0x555555));
         }
-
-        // 物理ボディの削除は EnemyManager に任せるか、ここでフラグを立てて Manager が処理
-        // シーンからのモデル削除も同様
-        // 今回は isAlive フラグで Manager 側で判断させる
     }
 
-    // EnemyManagerがクリーンアップ時に呼ぶ
+    /**
+     * この敵インスタンスに関連するリソースを解放します。
+     * EnemyManagerが敵を削除する際に呼び出されます。
+     */
     dispose() {
         if (this.mixer) {
-            this.mixer.removeEventListener('finished', this._onAnimationFinished.bind(this)); // リスナー削除
+            this.mixer.removeEventListener('finished', this._onAnimationFinished.bind(this));
             this.mixer.stopAllAction();
         }
         if (this.model && this.model.parent) {
             this.model.parent.remove(this.model);
         }
-        // ジオメトリやマテリアルはクローン元で管理されるので、ここでは破棄しない想定
-        // (AssetLoaderでロードしたものをEnemyManagerがクローンして渡す場合)
-        // もしEnemyごとにユニークなジオメトリ/マテリアルなら破棄が必要
-        console.log(`Enemy (${this.config.MODEL_PATH}) disposed.`);
     }
 }

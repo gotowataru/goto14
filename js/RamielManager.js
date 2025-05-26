@@ -118,11 +118,20 @@ export class RamielManager {
     }
 
 
-    createRamiels(numRamiels, mazeModel) {
+    createRamiels(numRamiels, mazeModel, floorY) {
         if (!mazeModel) {
             console.warn("Maze model not available for Ramiel placement.");
             return;
         }
+
+    // ★ floorY が数値でない場合 (Game.jsから渡されなかった等) のフォールバック処理
+    //    この行は for ループの外、メソッドの先頭近く（mazeBoundingBox の計算前など）に追加します。
+    if (typeof floorY !== 'number') {
+        console.warn("RamielManager: floorY was not a number. Defaulting to 0.");
+        floorY = 0; // Game.js側の挙動に合わせるか、適切なデフォルト値を設定
+    }
+    // ★ ここまでが追加部分
+
         const mazeBoundingBox = new THREE.Box3().setFromObject(mazeModel);
         const mazeSize = mazeBoundingBox.getSize(new THREE.Vector3());
         const mazeCenter = mazeBoundingBox.getCenter(new THREE.Vector3());
@@ -153,13 +162,22 @@ export class RamielManager {
 
             const x = THREE.MathUtils.randFloat(mazeCenter.x - mazeSize.x / 2 * 0.7, mazeCenter.x + mazeSize.x / 2 * 0.7);
             const z = THREE.MathUtils.randFloat(mazeCenter.z - mazeSize.z / 2 * 0.7, mazeCenter.z + mazeSize.z / 2 * 0.7);
-            const y = mazeBoundingBox.max.y + RAMIEL_INITIAL_Y_OFFSET + size;
+
+        // ▼▼▼【Y座標の計算部分の変更】▼▼▼
+        // 物理ボディの形状はボックスで近似しており、その半分の高さ (Y方向) を計算します。
+        const physicalHalfHeight = RAMIEL_SIZE * 0.707; // 0.707 は 1/sqrt(2) の近似
+
+        // ラミエルの中心Y座標 = 床の高さ + 初期オフセット + 物理的な高さの半分
+        const y = floorY + RAMIEL_INITIAL_Y_OFFSET + physicalHalfHeight;
+        // ▲▲▲【ここまでが変更されたY座標計算】▲▲▲
+
+
             ramielMesh.position.set(x, y, z);
             ramielMesh.name = `Ramiel_${i}`; // デバッグ用に名前を保持
 
             this.scene.add(ramielMesh);
 
-            const boxHalfExtents = new THREE.Vector3(size, size, size).multiplyScalar(0.707);
+        const boxHalfExtents = new THREE.Vector3(size * 0.707, physicalHalfHeight, size * 0.707);
             const physicsBody = this.physicsManager.createBoxPhysicsBody(
                 ramielMesh, boxHalfExtents, RAMIEL_MASS,
                 RAMIEL_FRICTION, RAMIEL_RESTITUTION, false

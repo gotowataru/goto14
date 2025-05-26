@@ -13,7 +13,7 @@ export const ANIMATION_PATHS = { // キャラクターのアニメーション�
 };
 
 // --- キャラクター基本設定 ---
-export const CHARACTER_INITIAL_POSITION = new THREE.Vector3(0, 1, 0); // キャラクターの初期位置 (x, y, z)。ゲーム開始時のキャラクターのスポーン地点。一時的にコメントアウト
+export const CHARACTER_INITIAL_POSITION = new THREE.Vector3(0, 1, 0); // キャラクターの初期位置 (x, y, z)。ゲーム開始時のキャラクターのスポーン地点。
 
 export const CHARACTER_INITIAL_SCALE = 1.0; // キャラクターモデルの初期スケール。値を変更するとキャラクターのサイズが変わります。物理演算にも影響。
 export const CHARACTER_SPEED = 10.0; // キャラクターの移動速度。大きいほど速く移動します。
@@ -28,7 +28,6 @@ export const CHARACTER_LOCAL_FORWARD = new THREE.Vector3(0, 0, 1); // キャラ�
 // export const CHARACTER_JUMP_FORCE = 2000 * CHARACTER_INITIAL_SCALE; // ジャンプ時に加える力の大きさ (要調整)
 // export const CHARACTER_JUMP_INITIAL_VELOCITY = 100 * MAZE_SCALE; // ジャンプの初速 (Y方向) (要調整)
 // export const CHARACTER_MAX_JUMPS = 1; // 最大ジャンプ回数 (2段ジャンプなら2)
-
 
 // --- 迷路設定 ---
 export const MAZE_SCALE = 1; // 迷路モデルの全体的なスケール。迷路の大きさを調整します。他の多くの値もこれに依存する場合があります。
@@ -48,19 +47,70 @@ export const ZOOM_SPEED_FACTOR = 0.1; // カメラのズーム速度係数。マ
 // --- プロジェクタイル (ビーム・リング) 設定 ---
 export const BEAM_COLOR = 0xffff00; // ビームの色 (16進数カラーコード、例: 黄色)。
 export const BEAM_DAMAGE = 20; // ビームの攻撃力
-export const BEAM_RADIUS = 0.5 * MAZE_SCALE; // ビームの半径。ビームの太さを決定します。
-export const BEAM_LENGTH = 500 * MAZE_SCALE; // ビームの視覚的な長さ。
-export const BEAM_SPEED = 100 * MAZE_SCALE; // ビームの進行速度。
+export const BEAM_RADIUS = 0.2 * MAZE_SCALE; // ビームの半径。ビームの太さを決定します。
+export const BEAM_LENGTH = 100 * MAZE_SCALE; // ビームの視覚的な長さ。
+export const BEAM_SPEED = 10 * MAZE_SCALE; // ビームの進行速度。
 export const BEAM_RAYCAST_DISTANCE = BEAM_SPEED * (1.0 / 60.0) * 1.2; // ビームの1フレームあたりのレイキャスト（衝突判定）距離。貫通防止用。速度とフレームレートから算出。
-
-export const RING_COLOR = 0x00ff7f; // キック時に発生するリングエフェクトの色 (例: あざやかな緑系の色 )。
-export const RING_RADIUS = 2.0 * MAZE_SCALE; // リングエフェクトの半径。
-export const RING_DURATION = 1.0; // リングエフェクトの表示時間 (秒)。
+export const BEAM_RAYCAST_WIDTH = 1.0 * MAZE_SCALE; // レイキャストの横方向の広がり
+export const BEAM_RAYCAST_NUM_RAYS = 9;             // レイキャストを飛ばす本数 (奇数推奨: 中央1本 + 左右対称)
+export const BEAM_RAYCAST_HEIGHT = 1.0 * MAZE_SCALE; // 垂直方向のレイキャストの広がり (敵の高さに合わせて調整)
+export const BEAM_RAYCAST_NUM_RAYS_HORIZONTAL = 3;  // 水平方向のレイの本数
+export const BEAM_RAYCAST_NUM_RAYS_VERTICAL = 3;    // 垂直方向のレイの本数
 export const BEAM_SPAWN_OFFSET_FORWARD = CHARACTER_RADIUS * 3.5; // ビームをキャラクターの前方、どれだけ離れた位置からスポーンさせるかのオフセット。
-export const RING_SPAWN_OFFSET_FORWARD = CHARACTER_RADIUS * 3.0; // リングをキャラクターの前方、どれだけ離れた位置からスポーンさせるかのオフセット。
-export const RING_SPAWN_OFFSET_UP = RING_RADIUS * 1.0; // リングをキャラクターの足元基準で、どれだけ上方向にオフセットしてスポーンさせるか。
 export const KICK_BEAM_DELAY = 0.7; // キックアニメーション開始からビームが発射されるまでの遅延時間 (秒)。アニメーションと同期させるために調整。
-export const MAX_BEAM_LIFETIME = 3000; // ビームが3秒で消える (3000ミリ秒)
+export const MAX_BEAM_LIFETIME = 2000; // 3000でビームが3秒で消える (ミリ秒)
+
+// --- 魔貫光殺砲風ビーム 設定 (Makanko Beam Settings) ---
+export const MAKANKO_BEAM_TYPE_ENABLED = true;     // このビームタイプを使用するかどうか (true/false)
+export const MAKANKO_CORE_BEAM_RADIUS = 0.08 * MAZE_SCALE;  // 中心ビームの半径
+export const MAKANKO_CORE_BEAM_COLOR = 0xffff00;    // 中心ビームの色
+export const MAKANKO_BEAM_LENGTH = BEAM_LENGTH * 0.8; // ビームの全長 (通常ビームの長さを基準にするか、専用の値)
+export const MAKANKO_CORE_EMISSIVE_INTENSITY = 2.5; // 中心ビームの自己発光の強さ
+export const MAKANKO_CORE_METALNESS = 0.1;          // 中心ビームの金属っぽさ
+export const MAKANKO_CORE_ROUGHNESS = 0.7;          // 中心ビームの表面の粗さ
+
+export const MAKANKO_SPIRAL_COLOR = 0xff441f;       // 螺旋の色
+export const MAKANKO_NUM_SPIRAL_STRANDS = 4;        // 螺旋の筋の本数
+export const MAKANKO_SPIRAL_TUBE_RADIUS = 0.05 * MAZE_SCALE; // 螺旋チューブ自体の半径（太さ）
+export const MAKANKO_SPIRAL_TUBE_SEGMENTS = 48;     // 螺旋チューブのパスに沿った分割数（滑らかさ）
+export const MAKANKO_SPIRAL_PATH_POINTS = 30;       // 螺旋パスを生成するための点の数
+export const MAKANKO_SPIRAL_DISTANCE_FROM_CENTER = 1.7 * MAZE_SCALE; // 中心ビームからの螺旋の半径
+export const MAKANKO_SPIRAL_PITCH = 1.3 * MAZE_SCALE; // 螺旋のピッチ（1回転で進む距離、小さいほど密）
+export const MAKANKO_SPIRAL_ROTATION_SPEED_FACTOR = 30; // 螺旋の回転アニメーションの速度係数
+export const MAKANKO_SPIRAL_EMISSIVE_INTENSITY = 1.5; // 螺旋チューブの自己発光の強さ
+export const MAKANKO_SPIRAL_METALNESS = 0.05;       // 螺旋チューブの金属っぽさ
+export const MAKANKO_SPIRAL_ROUGHNESS = 0.8;        // 螺旋チューブの表面の粗さ
+
+export const MAKANKO_BEAM_SPEED = BEAM_SPEED * 1.0;  // ビームのスピード
+export const MAKANKO_MAX_BEAM_LIFETIME = MAX_BEAM_LIFETIME * 1.0; // ビームの寿命
+
+
+
+// --- リング 01 設定 ---
+export const RING_01_ENABLED = true; // リングを表示するかどうか
+export const RING_01_COLOR = 0x00ff7f; // リング1の色 (あざやかな緑)
+export const RING_01_RADIUS = 0.4 * MAZE_SCALE; // リング1の全体の半径
+export const RING_01_THICKNESS = 0.03 * MAZE_SCALE; // リング1の淵の太さ (チューブ部分の半径)
+export const RING_01_DURATION = 1.0; // リング1の表示時間 (秒)
+export const RING_01_SPAWN_OFFSET_FORWARD = CHARACTER_RADIUS * 3.2; // リング1をキャラクターの前方、どれだけ離れた位置からスポーンさせるかのオフセット。
+export const RING_01_SPAWN_OFFSET_UP = RING_01_RADIUS * 4.1;    // リング1をキャラクターの足元基準で、どれだけ上方向にオフセットしてスポーンさせるか。
+
+// --- リング 02 設定 ---
+export const RING_02_ENABLED = true;
+export const RING_02_COLOR = 0x00ff7f; // リング2の色
+export const RING_02_RADIUS = 0.38 * MAZE_SCALE; // リング2の全体の半径 
+export const RING_02_THICKNESS = 0.02 * MAZE_SCALE; // リング2の淵の太さ
+export const RING_02_DURATION = 1.1; // リング2の表示時間
+export const RING_02_SPAWN_OFFSET_FORWARD = CHARACTER_RADIUS * 4.3; // リング2をキャラクターの前方、どれだけ離れた位置からスポーンさせるかのオフセット。
+export const RING_02_SPAWN_OFFSET_UP = RING_01_RADIUS * 4.1;   // リング2をキャラクターの足元基準で、どれだけ上方向にオフセットしてスポーンさせるか。
+// --- リング 03 設定 ---
+export const RING_03_ENABLED = true;
+export const RING_03_COLOR = 0x00ff7f; // リング3の色
+export const RING_03_RADIUS = 0.36 * MAZE_SCALE; // リング3の全体の半径
+export const RING_03_THICKNESS = 0.01 * MAZE_SCALE; // リング3の淵の太さ
+export const RING_03_DURATION = 1.2; // リング3の表示時間
+export const RING_03_SPAWN_OFFSET_FORWARD = CHARACTER_RADIUS * 5.4; // リング3をキャラクターの前方、どれだけ離れた位置からスポーンさせるかのオフセット。
+export const RING_03_SPAWN_OFFSET_UP = RING_01_RADIUS * 4.1;   // リング3をキャラクターの足元基準で、どれだけ上方向にオフセットしてスポーンさせるか。
 
 
 // --- ミニマップ設定 ---
@@ -82,17 +132,17 @@ export const WALL_RESTITUTION = 0.5; // 壁の物理的な反発係数。
 
 
 // --- 球体 (Sphere) 設定 ---
-export const NUM_SPHERES = 30; // ゲーム内に生成する球体の数。
+export const NUM_SPHERES = 10; // ゲーム内に生成する球体の数。
 export const MIN_SPHERE_RADIUS = 2.5 * MAZE_SCALE; // 生成される球体の最小半径。
-export const MAX_SPHERE_RADIUS = 7 * MAZE_SCALE; // 生成される球体の最大半径。
+export const MAX_SPHERE_RADIUS = 3 * MAZE_SCALE; // 生成される球体の最大半径。
 export const SPHERE_MASS = 20; // 球体の物理的な質量。
 export const SPHERE_FRICTION = 0.4; // 球体の物理的な摩擦係数。
 export const SPHERE_RESTITUTION = 0.6; // 球体の物理的な反発係数。
 export const SPHERE_INITIAL_Y_OFFSET = 10 * MAZE_SCALE; // 球体の初期配置時のY軸オフセット（床面からの高さ）。埋まらないように調整。
 
 // --- Ramiel (正八面体) 設定 ---
-export const NUM_RAMIELS = 10; // ゲーム内に生成するラミエルの数。
-export const RAMIEL_INITIAL_HP = 100; // ラミエルの初期HP
+export const NUM_RAMIELS = 3; // ゲーム内に生成するラミエルの数。
+export const RAMIEL_INITIAL_HP = 300; // ラミエルの初期HP
 export const RAMIEL_SIZE = 7 * MAZE_SCALE; // 生成されるラミエルの基本サイズ (OctahedronGeometryの半径に相当)。
 export const RAMIEL_CORE_RADIUS_FACTOR = 0.05; // ラミエルの中心核の半径（RAMIEL_SIZEに対する割合）。
 export const RAMIEL_COLOR = 0x1e90ff; // ラミエルの基本色 (青)。
@@ -103,7 +153,7 @@ export const RAMIEL_ROUGHNESS = 0.1; // ラミエルの表面の粗さ (0.0 - 1.
 export const RAMIEL_MASS = 20000; // ラミエルの物理的な質量。
 export const RAMIEL_FRICTION = 1.0; // ラミエルの物理的な摩擦係数。
 export const RAMIEL_RESTITUTION = 0.0001; // ラミエルの物理的な反発係数。
-export const RAMIEL_INITIAL_Y_OFFSET = 10 * MAZE_SCALE; // ラミエルの初期配置時のY軸オフセット。
+export const RAMIEL_INITIAL_Y_OFFSET = 3 * MAZE_SCALE; // ラミエルの初期配置時のY軸オフセット。
 
 export const RAMIEL_HP_BAR_ENABLED = true; // HPバー表示の有効/無効
 export const RAMIEL_HP_BAR_WIDTH = 4.5 * MAZE_SCALE;   // HPバーのワールド空間での幅
@@ -209,17 +259,17 @@ export const SFX_BEAM_LOOP = false; // 効果音は通常ループしない
 
 // --- Enemy: Enemy_001 設定 ---
 export const ENEMY_001_NUM_INSTANCES = 1; // 初期配置数 (テスト用に1体)
-export const ENEMY_001_MODEL_PATH = './models/enemy_001_idol.fbx';
+export const ENEMY_001_MODEL_PATH = './models/test_Enemy_idol_20250523_06.fbx';
 export const ENEMY_001_ANIMATIONS = {
-    idle: './models/量産型.fbx', // アイドルアニメーションはモデルファイル自体に含まれる
+    idle: './models/test_Enemy_idol_20250523_06.fbx', // アイドルアニメーションはモデルファイル自体に含まれる
     run: './models/enemy_001_run.fbx',
     attack: './models/enemy_001_attack.fbx'
 };
 export const ENEMY_001_INITIAL_POSITIONS = [ // 各インスタンスの初期位置 (配列で複数指定可能)
-    new THREE.Vector3(200, 100, -100) // 例: (x, y, z) - Yはキャラクター同様、地面からの高さを調整
+    new THREE.Vector3(40, 1, -40) // 例: (x, y, z) - Yはキャラクター同様、地面からの高さを調整
     // , new THREE.Vector3(-5, 1, -5) // 複数配置する場合
 ];
-export const ENEMY_001_SCALE = 1.0;
+export const ENEMY_001_SCALE = 1.0; // モデルの倍率
 export const ENEMY_001_BASE_HEIGHT = 2.0; // モデルの基準身長
 export const ENEMY_001_BASE_RADIUS = 0.5; // モデルの基準半径
 export const ENEMY_001_HEIGHT = ENEMY_001_BASE_HEIGHT * ENEMY_001_SCALE;
@@ -227,6 +277,6 @@ export const ENEMY_001_RADIUS = ENEMY_001_BASE_RADIUS * ENEMY_001_SCALE;
 export const ENEMY_001_MASS = 50;
 export const ENEMY_001_FRICTION = 0.5;
 export const ENEMY_001_RESTITUTION = 0.1;
-export const ENEMY_001_HP = 50;
+export const ENEMY_001_HP = 9999;
 export const ENEMY_001_ATTACK_DAMAGE = 5;
 export const ENEMY_001_LOCAL_FORWARD = new THREE.Vector3(0, 0, 1); // モデルの前方方向

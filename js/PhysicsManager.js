@@ -29,10 +29,10 @@ export class PhysicsManager {
                     Ammo().then((ammoInstance) => {
                         this.AmmoAPI = ammoInstance;
                         this.tempTransform = new this.AmmoAPI.btTransform(); // Ammo初期化後に生成
-                        console.log("Ammo.js (WASM) initialized by PhysicsManager.");
+                        console.log("PhysicsManager: Ammo.js (WASM) initialized.");
                         resolve();
                     }).catch(error => {
-                        console.error("Error initializing Ammo.js (WASM) module:", error);
+                        console.error("PhysicsManager: Error initializing Ammo.js (WASM) module:", error);
                         reject(error);
                     });
                 } else {
@@ -44,7 +44,6 @@ export class PhysicsManager {
     }
 
     getTempTransform() {
-        // initAmmoで初期化済みのはずなので、ここでの再生成ロジックは基本的に不要
         if (!this.tempTransform && this.AmmoAPI) {
              this.tempTransform = new this.AmmoAPI.btTransform();
         }
@@ -53,7 +52,7 @@ export class PhysicsManager {
 
     initPhysicsWorld() {
         if (!this.AmmoAPI) {
-            console.error("AmmoAPI not initialized. Cannot init physics world.");
+            console.error("PhysicsManager: AmmoAPI not initialized. Cannot init physics world.");
             return;
         }
         this.collisionConfiguration = new this.AmmoAPI.btDefaultCollisionConfiguration();
@@ -62,45 +61,77 @@ export class PhysicsManager {
         this.solver = new this.AmmoAPI.btSequentialImpulseConstraintSolver();
         this.physicsWorld = new this.AmmoAPI.btDiscreteDynamicsWorld(this.dispatcher, this.broadphase, this.solver, this.collisionConfiguration);
         this.physicsWorld.setGravity(new this.AmmoAPI.btVector3(0, this.GRAVITY_CONSTANT, 0));
-        console.log("Ammo.js Physics world initialized by PhysicsManager.");
+        console.log("PhysicsManager: Ammo.js Physics world initialized.");
+        console.log(`PhysicsManager: Gravity set to Y=${this.GRAVITY_CONSTANT}`);
     }
 
-    stepSimulation(deltaTime, maxSubSteps = 10, fixedTimeStep = 1 / 60) { // デフォルト値設定
+    stepSimulation(deltaTime, maxSubSteps = 10, fixedTimeStep = 1 / 60) {
         if (this.physicsWorld) {
             this.physicsWorld.stepSimulation(deltaTime, maxSubSteps, fixedTimeStep);
         }
     }
 
-    addRigidBodyToWorld(body, group = 1, mask = -1) { // 衝突グループとマスクの引数を追加 (デフォルトは全てと衝突)
+    addRigidBodyToWorld(body, group = 1, mask = -1) {
         this.physicsWorld.addRigidBody(body, group, mask);
         this.rigidBodies.push(body); // 管理リストに追加
+
+        // 静的ボディ (質量0) に対して getMass() を呼び出すとエラーになるため、安全な条件付きに
+        let massInfo = 'N/A';
+        if (typeof body.getMass === 'function') { // Ammo.jsのボディにgetMassが定義されているかチェック
+            const mass = body.getMass();
+            if (mass > 0) {
+                massInfo = mass.toFixed(2);
+            } else {
+                if (body.getCollisionFlags() & this.AmmoAPI.CF_STATIC_OBJECT) {
+                    massInfo = '0 (Static)';
+                } else if (body.getCollisionFlags() & this.AmmoAPI.CF_KINEMATIC_OBJECT) {
+                    massInfo = '0 (Kinematic)';
+                } else {
+                    massInfo = '0';
+                }
+            }
+        }
+        console.log(`PhysicsManager: Added rigid body to world. Total rigid bodies: ${this.rigidBodies.length}. Mass: ${massInfo}.`);
     }
 
-    createCharacterPhysicsBody(initialPosition, characterHeight, characterRadius, characterMass) {
-        if (!this.AmmoAPI || !this.physicsWorld) return null;
+    /**
+     * キャラクター用のカプセル型物理ボディを作成します。
+     * @param {THREE.Vector3} initialPosition - 初期位置 (足元)
+     * @param {number} characterHeight - キャラクターの高さ
+     * @param {number} characterRadius - キャラクターの半径
+     * @param {number} characterMass - キャラクターの質量
+     * @returns {Ammo.btRigidBody | null} 作成された物理ボディ
+     */
+    createCharacterPhysicsBody(initialPosition, characterHeight, characterRadius, characterMass) { // ★ 引数を元の形に戻す
+        if (!this.AmmoAPI || !this.physicsWorld) {
+            console.error("PhysicsManager: AmmoAPI or PhysicsWorld not initialized. Cannot create character physics body.");
+            return null;
+        }
 
         const capsuleRadius = characterRadius;
+        // Ammo.jsのbtCapsuleShape(radius, height) の height は「円柱部分の高さ」なので、
+        // 全体のカプセル高さから両端の半球半径2つ分を引く必要があります。
         const capsuleCylinderHeight = Math.max(0.01, characterHeight - (2 * capsuleRadius)); // 高さが0にならないように
+
         const shape = new this.AmmoAPI.btCapsuleShape(capsuleRadius, capsuleCylinderHeight);
 
         const transform = new this.AmmoAPI.btTransform();
         transform.setIdentity();
-        // カプセルの原点は、カプセルの幾何学的中心。キャラクターモデルの原点が足元の場合、
-        // 物理カプセルの中心は (pos.y + capsuleCylinderHeight/2 + capsuleRadius) または (pos.y + characterHeight/2)
-        // Character.jsのsyncPhysicsToModelでモデル位置を調整しているので、
-        // ここでは物理ボディの中心を initialPosition.y + characterHeight / 2 に合わせる
-        transform.setOrigin(new this.AmmoAPI.btVector3(initialPosition.x, initialPosition.y + characterHeight / 2, initialPosition.z));
 
+        // 物理ボディの原点は、モデルの足元から半分の高さ (重心) に設定
+        transform.setOrigin(new this.AmmoAPI.btVector3(initialPosition.x, initialPosition.y + characterHeight / 2, initialPosition.z));
+        
         const localInertia = new this.AmmoAPI.btVector3(0, 0, 0);
         if (characterMass > 0) shape.calculateLocalInertia(characterMass, localInertia);
+
         const motionState = new this.AmmoAPI.btDefaultMotionState(transform);
         const rbInfo = new this.AmmoAPI.btRigidBodyConstructionInfo(characterMass, motionState, shape, localInertia);
         const body = new this.AmmoAPI.btRigidBody(rbInfo);
 
-        body.setActivationState(4); // DISABLE_DEACTIVATION
-        body.setAngularFactor(new this.AmmoAPI.btVector3(0, 1, 0));
-        body.setFriction(CHARACTER_FRICTION);
-        body.setRestitution(CHARACTER_RESTITUTION);
+        body.setActivationState(4); // DISABLE_DEACTIVATION (常にアクティブに保つ)
+        body.setAngularFactor(new this.AmmoAPI.btVector3(0, 1, 0)); // Y軸回転のみ許可
+        body.setFriction(CHARACTER_FRICTION); // constantsから取得
+        body.setRestitution(CHARACTER_RESTITUTION); // constantsから取得
 
         this.addRigidBodyToWorld(body); // デフォルトは全てと衝突
         return body;
@@ -108,7 +139,7 @@ export class PhysicsManager {
 
     createWallPhysicsBody(wallMesh, isSlope = false) {
         if (!this.AmmoAPI || !this.physicsWorld) return null;
-        wallMesh.updateMatrixWorld(true); // 最新のワールド変換を適用
+        wallMesh.updateMatrixWorld(true);
 
         let shape;
         const transform = new this.AmmoAPI.btTransform();
@@ -119,7 +150,7 @@ export class PhysicsManager {
             const geometry = wallMesh.geometry;
 
             if (!geometry.index) {
-                console.warn("Slope mesh is not indexed. Trying to create non-indexed triangle mesh. This might be less efficient or fail.", wallMesh.name);
+                console.warn("PhysicsManager: Slope mesh is not indexed. Trying to create non-indexed triangle mesh. This might be less efficient or fail.", wallMesh.name);
 
                 const box = new THREE.Box3().setFromObject(wallMesh);
                 const size = new THREE.Vector3();
@@ -135,7 +166,7 @@ export class PhysicsManager {
                 const vertices = geometry.attributes.position.array;
                 const indices = geometry.index.array;
                 const numTriangles = indices.length / 3;
-                const vec1 = new this.AmmoAPI.btVector3(0,0,0); // 再利用してメモリ確保を減らす
+                const vec1 = new this.AmmoAPI.btVector3(0,0,0);
                 const vec2 = new this.AmmoAPI.btVector3(0,0,0);
                 const vec3 = new this.AmmoAPI.btVector3(0,0,0);
 
@@ -151,7 +182,7 @@ export class PhysicsManager {
                     vec1.setValue(p0.x, p0.y, p0.z);
                     vec2.setValue(p1.x, p1.y, p1.z);
                     vec3.setValue(p2.x, p2.y, p2.z);
-                    triangleMesh.addTriangle(vec1, vec2, vec3, false); // removeDuplicateVertices = false
+                    triangleMesh.addTriangle(vec1, vec2, vec3, false);
                 }
                 shape = new this.AmmoAPI.btBvhTriangleMeshShape(triangleMesh, true);
             }
@@ -164,7 +195,7 @@ export class PhysicsManager {
             box.getCenter(center);
             transform.setOrigin(new this.AmmoAPI.btVector3(center.x, center.y, center.z));
             const q = new THREE.Quaternion();
-            wallMesh.matrixWorld.decompose(new THREE.Vector3(), q, new THREE.Vector3()); // position, quaternion, scale
+            wallMesh.matrixWorld.decompose(new THREE.Vector3(), q, new THREE.Vector3());
             transform.setRotation(new this.AmmoAPI.btQuaternion(q.x, q.y, q.z, q.w));
         }
 
@@ -176,8 +207,8 @@ export class PhysicsManager {
 
         body.setFriction(WALL_FRICTION); 
         body.setRestitution(WALL_RESTITUTION);
-        body.setCollisionFlags(body.getCollisionFlags() | 2); 
-        body.setActivationState(4);
+        body.setCollisionFlags(body.getCollisionFlags() | this.AmmoAPI.CF_STATIC_OBJECT); // 静的オブジェクトフラグを設定
+        body.setActivationState(4); // DISABLE_DEACTIVATION
 
         this.addRigidBodyToWorld(body);
         return body;
@@ -203,31 +234,17 @@ export class PhysicsManager {
         return body;
     }
 
-    /**
-     * 箱型の剛体を作成します。
-     * @param {THREE.Object3D} threeObject - 関連付けるThree.jsオブジェクト
-     * @param {THREE.Vector3} halfExtents - 箱の各辺の半分の長さ (中心からの距離)
-     * @param {number} mass - 質量 (0の場合は静的オブジェクト)
-     * @param {number} friction - 摩擦係数
-     * @param {number} restitution - 反発係数
-     * @param {boolean} [isKinematic=false] - キネマティックボディにするか
-     * @param {THREE.Vector3} [offset=new THREE.Vector3(0,0,0)] - Three.jsオブジェクトの中心と物理ボディの中心のオフセット
-     * @returns {Ammo.btRigidBody | null} 作成された Ammo.btRigidBody、または失敗した場合は null
-     */
-
     createBoxPhysicsBody(threeObject, halfExtents, mass, friction, restitution, isKinematic = false, offset = new THREE.Vector3(0,0,0)) {
         if (!this.AmmoAPI || !this.physicsWorld) {
             console.error("PhysicsManager: AmmoAPIまたはPhysicsWorldが初期化されていません。Cannot create box physics body.");
             return null;
         }
 
-        // Three.jsオブジェクトのワールド座標と回転を取得
         const worldPosition = new THREE.Vector3();
         const worldQuaternion = new THREE.Quaternion();
         threeObject.getWorldPosition(worldPosition);
         threeObject.getWorldQuaternion(worldQuaternion);
 
-        // オフセットを適用
         const physicsPosition = worldPosition.clone().add(offset);
 
         const transform = new this.AmmoAPI.btTransform();
@@ -237,13 +254,12 @@ export class PhysicsManager {
 
         const motionState = new this.AmmoAPI.btDefaultMotionState(transform);
 
-        // 箱の形状を作成
         const shape = new this.AmmoAPI.btBoxShape(new this.AmmoAPI.btVector3(halfExtents.x, halfExtents.y, halfExtents.z));
-        const collisionMargin = 0.05; // 適切な値を設定
+        const collisionMargin = 0.05;
         shape.setMargin(collisionMargin);
 
         const localInertia = new this.AmmoAPI.btVector3(0, 0, 0);
-        if (mass > 0 && !isKinematic) { // 動的ボディの場合のみ慣性を計算
+        if (mass > 0 && !isKinematic) {
             shape.calculateLocalInertia(mass, localInertia);
         }
 
@@ -254,27 +270,18 @@ export class PhysicsManager {
         body.setRestitution(restitution);
 
         if (isKinematic) {
-            body.setCollisionFlags(body.getCollisionFlags() | 2); // CF_KINEMATIC_OBJECT
-            body.setActivationState(4); // DISABLE_DEACTIVATION (キネマティックボディは常にアクティブ)
-        } else if (mass === 0) { // 静的オブジェクトの場合
-            // 静的オブジェクトのフラグは addRigidBodyToWorld で設定されるか、
-            // ここで明示的に設定しても良い。createWallPhysicsBody を参考に。
-            // 現状の createWallPhysicsBody では CF_STATIC_OBJECT (フラグ値2) を設定しているので、
-            // ここでは質量0なら静的と見なすのが自然。
-            // ただし、キネマティックも質量0で定義されることがあるので、isKinematic を優先。
-            body.setCollisionFlags(body.getCollisionFlags() | 1); // CF_STATIC_OBJECT (Ammo.jsの定義
-            if (!isKinematic) { // isKinematic でない質量0のオブジェクトは静的
-                 body.setCollisionFlags(body.getCollisionFlags() | 1); // CF_STATIC_OBJECT
-            }
+            body.setCollisionFlags(body.getCollisionFlags() | this.AmmoAPI.CF_KINEMATIC_OBJECT);
+            body.setActivationState(4);
+        } else if (mass === 0) {
+            body.setCollisionFlags(body.getCollisionFlags() | this.AmmoAPI.CF_STATIC_OBJECT);
         }
 
-        // オプション: Three.jsオブジェクトを物理ボディに関連付ける (raycastなどで使用)
-        body.threeMesh = threeObject; // PhysicsManager.findMeshByBodyPtr で使うために直接参照を保持
+        body.threeMesh = threeObject;
 
         this.addRigidBodyToWorld(body);
 
         if (mass > 0 && !isKinematic) { 
-             body.activate(); // スリープ状態になるのを防ぐため、初期状態でアクティブにする
+             body.activate();
         }
         return body;
     }
@@ -296,33 +303,18 @@ export class PhysicsManager {
             }
 
             if (collisionShape) {
-                let successfullyDestroyedMeshInterface = false;
                 try {
                     const bvhShape = this.AmmoAPI.castObject(collisionShape, this.AmmoAPI.btBvhTriangleMeshShape);
-
-                    if (bvhShape) {
-
-                        if (typeof bvhShape.getMeshInterface === 'function') {
-                            console.log("PhysicsManager.removeRigidBody: Shape identified as btBvhTriangleMeshShape with getMeshInterface. Attempting to destroy meshInterface.");
-                            const meshInterface = bvhShape.getMeshInterface();
-                            if (meshInterface) {
-                                this.AmmoAPI.destroy(meshInterface);
-                                console.log("PhysicsManager.removeRigidBody: Destroyed meshInterface.");
-                                successfullyDestroyedMeshInterface = true;
-                            } else {
-                                console.log("PhysicsManager.removeRigidBody: getMeshInterface() returned null/undefined.");
-                            }
-                        } else {
-                            // console.log("PhysicsManager.removeRigidBody: Cast to btBvhTriangleMeshShape successful, but getMeshInterface is not a function. Shape might be a related concave type without a direct mesh interface to destroy this way.");
+                    if (bvhShape && typeof bvhShape.getMeshInterface === 'function') {
+                        const meshInterface = bvhShape.getMeshInterface();
+                        if (meshInterface) {
+                            this.AmmoAPI.destroy(meshInterface);
                         }
-                    } else {
-                        // console.log("PhysicsManager.removeRigidBody: Cast to btBvhTriangleMeshShape failed. Assuming not a btBvhTriangleMeshShape requiring special meshInterface destruction.");
                     }
                 } catch (e) {
                     console.warn("PhysicsManager.removeRigidBody: Error during special shape destruction (e.g., meshInterface). Proceeding with normal shape destruction. Error:", e);
                 }
 
-                // 通常のコリジョンシェイプの破棄は必ず行う
                 this.AmmoAPI.destroy(collisionShape);
             }
         } else {
@@ -330,27 +322,25 @@ export class PhysicsManager {
         }
     }
 
-    // レイキャスト機能
     raycast(rayFromWorld, rayToWorld, options = {}) {
         if (!this.AmmoAPI || !this.physicsWorld) return { hasHit: false };
 
         const {
-            ignoreRigidBody = null, // 無視するbtRigidBody
-            collisionFilterGroup = -1, // Ammo.btBroadphaseProxy. તમામグループと衝突 (デフォルト)
-            collisionFilterMask = -1,  // Ammo.btBroadphaseProxy. તમામマスクと衝突 (デフォルト)
+            ignoreRigidBody = null,
+            collisionFilterGroup = 1,
+            collisionFilterMask = -1,
         } = options;
 
         const rayFrom = new this.AmmoAPI.btVector3(rayFromWorld.x, rayFromWorld.y, rayFromWorld.z);
         const rayTo = new this.AmmoAPI.btVector3(rayToWorld.x, rayToWorld.y, rayToWorld.z);
         const rayCallback = new this.AmmoAPI.ClosestRayResultCallback(rayFrom, rayTo);
 
-        // 衝突フィルタリング設定
         rayCallback.set_m_collisionFilterGroup(collisionFilterGroup);
         rayCallback.set_m_collisionFilterMask(collisionFilterMask);
 
         let ignoreCollisionObject = null;
         if (ignoreRigidBody) {
-            ignoreCollisionObject = ignoreRigidBody.a; // Ammo.js の btRigidBody はラッパーなので、実際のポインタは .a にあることが多い
+            ignoreCollisionObject = ignoreRigidBody.a;
         }
 
         this.physicsWorld.rayTest(rayFrom, rayTo, rayCallback);
@@ -359,19 +349,19 @@ export class PhysicsManager {
         if (rayCallback.hasHit()) {
             const hitPoint = rayCallback.get_m_hitPointWorld();
             const hitNormal = rayCallback.get_m_hitNormalWorld();
-            const collisionObject = rayCallback.get_m_collisionObject(); // btCollisionObjectのポインタ (型付き)
+            const collisionObject = rayCallback.get_m_collisionObject();
 
             if (ignoreCollisionObject && collisionObject.a === ignoreCollisionObject) { 
             } else {
                 const actualBody = this.AmmoAPI.btRigidBody.prototype.upcast(collisionObject);
-                const hitMesh = collisionObject.getCollisionFlags() === 2 ? null : this.findMeshByBodyPtr(collisionObject.a);
+                const hitMesh = (collisionObject.getCollisionFlags() & this.AmmoAPI.CF_KINEMATIC_OBJECT) ? null : this.findMeshByBodyPtr(collisionObject.a);
 
                 result = {
                     hasHit: true,
                     point: new THREE.Vector3(hitPoint.x(), hitPoint.y(), hitPoint.z()),
                     normal: new THREE.Vector3(hitNormal.x(), hitNormal.y(), hitNormal.z()),
-                    colliderBody: actualBody, // btRigidBody
-                    colliderMesh: hitMesh     // THREE.Mesh (userDataなどから引く)
+                    colliderBody: actualBody,
+                    colliderMesh: hitMesh
                 };
             }
         }
@@ -382,24 +372,22 @@ export class PhysicsManager {
         return result;
     }
 
-    // (ヘルパー) 物理ボディのポインタからThree.jsメッシュを見つける (要実装)
     findMeshByBodyPtr(bodyPtr) {
         for (const body of this.rigidBodies) {
-            if (body.a === bodyPtr && body.threeMesh) { // body.threeMesh は独自に追加したプロパティ
+            if (body.a === bodyPtr && body.threeMesh) {
                 return body.threeMesh;
             }
         }
         return null;
     }
 
-
     destroy() {
         if (!this.AmmoAPI) return;
-        // ワールド内のすべてのリジッドボディを削除
+        console.log("PhysicsManager: Destroying resources...");
         for (let i = this.rigidBodies.length - 1; i >= 0; i--) {
-            this.removeRigidBody(this.rigidBodies[i]); // removeRigidBody内でリストからも削除される
+            this.removeRigidBody(this.rigidBodies[i]);
         }
-        this.rigidBodies = []; //念のため空にする
+        this.rigidBodies = [];
 
         if (this.physicsWorld) this.AmmoAPI.destroy(this.physicsWorld);
         if (this.solver) this.AmmoAPI.destroy(this.solver);
@@ -414,6 +402,6 @@ export class PhysicsManager {
         this.dispatcher = null;
         this.collisionConfiguration = null;
         this.tempTransform = null;
-        console.log("PhysicsManager resources destroyed.");
+        console.log("PhysicsManager: Resources destroyed.");
     }
 }

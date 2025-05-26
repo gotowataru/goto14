@@ -12,8 +12,8 @@ import { SphereManager } from './SphereManager.js';
 import { RamielManager } from './RamielManager.js';
 import { Minimap } from './Minimap.js';
 import { EffectManager } from './EffectManager.js';
-import { EnemyManager } from './EnemyManager.js'; // ★ EnemyManagerをインポート
-import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js'; // ★ SkeletonUtilsをインポート
+import { EnemyManager } from './EnemyManager.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 import { // 定数をインポート
     GRAVITY, MAZE_MODEL_PATH, CHARACTER_BASE_MODEL_PATH, ANIMATION_PATHS,
@@ -37,6 +37,8 @@ import { // 定数をインポート
     RAMIEL_AT_FIELD_RADIUS,
     RAMIEL_AT_FIELD_OFFSET_FROM_RAMIEL,
     RAMIEL_AT_FIELD_ENABLED,
+
+    MAKANKO_BEAM_TYPE_ENABLED,
 
     // ★ Enemy_001関連の定数をインポート
     ENEMY_001_MODEL_PATH, ENEMY_001_ANIMATIONS, ENEMY_001_SCALE,
@@ -347,10 +349,12 @@ class Game {
 
         this.sphereManager.createSpheres(NUM_SPHERES, this.world.mazeModel);
         console.log("Spheres created.");
-        this.ramielManager.createRamiels(NUM_RAMIELS, this.world.mazeModel);
+        // ▼▼▼【修正後の行】▼▼▼
+        this.ramielManager.createRamiels(NUM_RAMIELS, this.world.mazeModel, this.mazeFloorMaxY);
+        // ▲▲▲【第3引数に this.mazeFloorMaxY を追加しました】▲▲▲
         console.log("Ramiels created.");
 
-        // --- ★ 敵キャラクターのセットアップ ★ ---
+        // --- 敵キャラクターのセットアップ ---
         if (this.enemyManager) {
             // EnemyManagerにロード済みアセットを渡して初期化
             await this.enemyManager.initEnemyAssets(loadedAssets);
@@ -361,7 +365,7 @@ class Game {
         } else {
             console.warn("Game: EnemyManager not available. Skipping enemy creation.");
         }
-        // --- ★ 敵キャラクターのセットアップここまで ★ ---
+        // --- 敵キャラクターのセットアップここまで ---
 
         this.cameraManager.setInitialCameraState(this.character.model);
 
@@ -374,6 +378,20 @@ class Game {
             }
             console.log("Minimap setup.");
         }
+
+        console.log("Game: _loadAssetsAndSetupGame: Final raycastTargets list:",
+            this.raycastTargets.map(obj => ({
+                name: obj.name,
+                uuid: obj.uuid,
+                type: obj.type,
+                visible: obj.visible, // visibleプロパティも確認
+                // isEnemyMarker: obj.userData.isEnemy // もしEnemy側に目印をつけているなら
+            }))
+        );
+
+
+
+
         console.log("Game: _loadAssetsAndSetupGame finished.");
     }
 
@@ -422,18 +440,30 @@ class Game {
         this.sphereManager.syncAllSpheres(this.tempTransform);
         this.ramielManager.syncAllRamiels(this.tempTransform);
 
-        // --- ★ 敵の更新と物理同期を追加 ★ ---
+        // --- 敵の更新と物理同期を追加 ---
         if (this.enemyManager) {
             this.enemyManager.update(delta); // AI、アニメーション更新、物理同期はEnemyManager.update内で行う
         }
-        // --- ★ 敵の更新ここまで ★ ---
+        // --- 敵の更新ここまで ---
 
         if (this.character && this.character.currentActionName === 'kick' &&
             this.character.kickActionStartTime !== null && !this.character.beamGeneratedDuringKick) {
             const elapsedSinceKickStart = (performance.now() - this.character.kickActionStartTime) / 1000;
             if (elapsedSinceKickStart >= KICK_BEAM_DELAY) {
                 const worldForward = this.character.localForwardDirection.clone().applyQuaternion(this.character.model.quaternion);
-                this.projectileManager.createBeam(this.character.model, worldForward, CHARACTER_HEIGHT, BEAM_SPAWN_OFFSET_FORWARD);
+
+                // リングを生成
+                this.projectileManager.createRings(this.character.model, worldForward);
+
+                // ビームを生成
+                this.projectileManager.createBeam(
+                    this.character.model,
+                    worldForward,
+                    CHARACTER_HEIGHT,
+                    BEAM_SPAWN_OFFSET_FORWARD,
+                    MAKANKO_BEAM_TYPE_ENABLED,
+                );
+
                 this.character.beamGeneratedDuringKick = true;
                 if (this.sfxBeamLoaded && this.sfxBeamSound) {
                     if (this.sfxBeamSound.isPlaying) this.sfxBeamSound.stop();
@@ -449,7 +479,44 @@ class Game {
         this.effectManager.update(delta);
 
         this.projectileManager.update(delta, (hitObject, projectile, hitPoint, distanceToHit, intersection) => {
+            // --- ★ デバッグログここから ★ ---
+            if (this.enemyManager) {
+                const potentialEnemy = this.enemyManager.getEnemyByMesh(hitObject);
+                console.log("Beam hit:", hitObject.name, "(UUID:", hitObject.uuid, ")");
+                if (potentialEnemy) {
+                    console.log("EnemyManager.getEnemyByMesh found:", potentialEnemy.config.KEY, "Model UUID:", potentialEnemy.model.uuid);
+                    console.log("Is it alive?", potentialEnemy.isAlive);
+                } else {
+                    console.log("EnemyManager.getEnemyByMesh did NOT find an enemy for this hitObject.");
+                    // もし敵が見つからない場合、hitObjectの親をログに出してみる
+                    let parent = hitObject.parent;
+                    let depth = 0;
+                    while(parent && depth < 5) { // 5階層くらいまで見てみる
+                        console.log(`  Parent[${depth}]:`, parent.name, "(UUID:", parent.uuid, ")");
+                        // enemyManagerのenemiesリストの各enemy.modelと比較してみる
+                        for (const enemy of this.enemyManager.enemies) {
+                            if (enemy.model === parent) {
+                                console.log(`    !!! This parent matches enemy.model for ${enemy.config.KEY} !!!`);
+                            }
+                        }
+                        parent = parent.parent;
+                        depth++;
+                    }
+                }
+                console.log("Is enemy (direct check)?", this.enemyManager.isEnemy(hitObject));
+            }
+            // --- ★ デバッグログここまで ★ ---
+
+            // --- ★ 各オブジェクトへの衝突判定とエフェクト生成ロジックを再配置 ★ ---
             if (hitObject.userData && hitObject.userData.isWall) {
+                // 壁ヒット時のエフェクト生成
+                if (this.effectManager && intersection.face && intersection.face.normal) {
+                    const worldNormal = intersection.face.normal.clone();
+                    // hitObject のワールドマトリックスを使って法線を変換
+                    const normalMatrix = new THREE.Matrix3().getNormalMatrix(hitObject.matrixWorld);
+                    worldNormal.applyMatrix3(normalMatrix).normalize();
+                    this.effectManager.createImpactEffect(hitPoint.clone(), worldNormal);
+                }
                 return "stop_and_adjust";
             }
             if (this.sphereManager.isSphere(hitObject)) {
@@ -461,11 +528,12 @@ class Game {
                     }
                     this.sphereManager.destroySphereByMesh(hitObject);
                     projectile.userData.hitSpheresThisFrame.add(hitObject.uuid);
-                    return "destroy_target_and_continue";
+                    return "destroy_target_and_continue"; // 球体は貫通
                 } else { return "ignore"; }
             }
             if (this.ramielManager.isRamiel(hitObject)) {
                 const wasDestroyed = this.ramielManager.applyDamage(hitObject, BEAM_DAMAGE);
+                // ATフィールド風エフェクトの生成呼び出し (Game.jsで処理)
                 if (this.effectManager && RAMIEL_AT_FIELD_ENABLED) {
                     const ramielPosition = hitObject.position.clone();
                     const characterPosition = this.character.model.position.clone();
@@ -477,6 +545,7 @@ class Game {
                     this.effectManager.createRamielATFieldEffect(atFieldPosition, directionToCharacter.clone(), true);
                 }
                 if (wasDestroyed) {
+                    // ラミエル破壊時のエフェクト (Game.jsで処理)
                     if (this.effectManager) {
                         const rPos = hitObject.position.clone();
                         const rHalfH = RAMIEL_SIZE * 0.707;
@@ -487,32 +556,34 @@ class Game {
                         this.effectManager.createRamielCrossExplosion(gPos);
                     }
                 }
-                return "stop_and_adjust"; // 常に停止
+                return "stop_and_adjust"; // ラミエルに当たったら停止
             }
 
-            // --- ★ 敵へのヒット処理を追加 ★ ---
-            if (this.enemyManager && this.enemyManager.isEnemy(hitObject)) {
-                const enemy = this.enemyManager.getEnemyByMesh(hitObject);
-                if (enemy && enemy.isAlive) {
+            // --- ★ 敵 (enemy_001) へのヒット処理 ★ ---
+            if (this.enemyManager && this.enemyManager.isEnemy(hitObject)) { // この条件が true になるか
+                const enemy = this.enemyManager.getEnemyByMesh(hitObject); // 再度取得
+                if (enemy && enemy.isAlive) { // isAlive も重要
+                    console.log("SUCCESS: Beam hit living enemy:", enemy.config.KEY); // ★成功ログ
                     // 将来的に: projectile.userData.hitEnemiesThisFrame のような Set で複数ヒット防止
                     // if (projectile.userData.hitEnemiesThisFrame && !projectile.userData.hitEnemiesThisFrame.has(enemy.model.uuid)) {
 
                     const wasDestroyed = enemy.applyDamage(BEAM_DAMAGE); // ダメージ適用
 
+                    // 敵ヒット時のエフェクト
                     if (this.effectManager && hitObject.material) { // 色がなくても汎用エフェクト
                         this.effectManager.createSparkExplosion(hitPoint.clone(), new THREE.Color(0xffaa00)); // オレンジ色の火花
                     }
 
-                    // projectile.userData.hitEnemiesThisFrame.add(enemy.model.uuid);
+                    // projectile.userData.hitEnemiesThisFrame.add(enemy.model.uuid); // 必要なら有効化
 
                     if (wasDestroyed) {
                         // 敵破壊時の追加エフェクト、スコア加算など (Enemy.die()で基本的なものは処理)
                         console.log("Game: Enemy destroyed by projectile:", enemy.config.KEY);
                     }
-                    return "destroy_target_and_continue"; // ビームは貫通する場合
-                    // return "stop_and_adjust"; // ビームが敵に当たって止まる場合
-                    // } else { return "ignore"; }
+                    return "stop_and_adjust"; // ★ 敵に当たったらビームは停止させる
+                    // } else { return "ignore"; } // 既にヒット済みなら無視
                 } else {
+                    console.log("INFO: Beam hit an enemy, but it's not alive or getEnemyByMesh failed again."); // ★デバッグ追加
                     return "ignore"; // 既に死んでいるか、取得できなかった
                 }
             }
@@ -540,25 +611,6 @@ class Game {
         if (this.minimap) this.minimap.onWindowResize();
     }
 
-    // ★ ゲーム終了時のリソース解放メソッド (必要に応じて)
-    // destroy() {
-    //     console.log("Game: Destroying resources...");
-    //     // アニメーションループを停止
-    //     // イベントリスナーを削除
-    //     // DOM要素を削除 (Rendererなど)
-    //
-    //     if (this.physicsManager) this.physicsManager.destroy();
-    //     if (this.enemyManager) this.enemyManager.destroyAllEnemies();
-    //     // 他のマネージャーの破棄処理も
-    //     // this.sphereManager.destroyAllSpheres(); // (もしあれば)
-    //     // this.ramielManager.destroyAllRamiels(); // (もしあれば)
-    //     // this.projectileManager.destroyAllProjectiles(); // (もしあれば)
-    //
-    //     // Three.jsオブジェクトの解放
-    //     // this.scene.traverse(object => { ... dispose ... });
-    //     // this.renderer.dispose();
-    //     console.log("Game: Resources destroyed.");
-    // }
 }
 
 export { Game };
