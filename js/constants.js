@@ -259,9 +259,9 @@ export const SFX_BEAM_LOOP = false; // 効果音は通常ループしない
 
 // --- Enemy: Enemy_001 設定 ---
 export const ENEMY_001_NUM_INSTANCES = 1; // 初期配置数 (テスト用に1体)
-export const ENEMY_001_MODEL_PATH = './models/test_Enemy_idol_20250523_06.fbx';
+export const ENEMY_001_MODEL_PATH = './models/test_Enemy_idol_20250526_01.fbx';
 export const ENEMY_001_ANIMATIONS = {
-    idle: './models/test_Enemy_idol_20250523_06.fbx', // アイドルアニメーションはモデルファイル自体に含まれる
+    idle: './models/test_Enemy_idol_20250526_01.fbx', // アイドルアニメーションはモデルファイル自体に含まれる
     run: './models/enemy_001_run.fbx',
     attack: './models/enemy_001_attack.fbx'
 };
