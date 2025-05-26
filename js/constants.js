@@ -132,16 +132,16 @@ export const WALL_RESTITUTION = 0.5; // 壁の物理的な反発係数。
 
 
 // --- 球体 (Sphere) 設定 ---
-export const NUM_SPHERES = 10; // ゲーム内に生成する球体の数。
+export const NUM_SPHERES = 30; // ゲーム内に生成する球体の数。
 export const MIN_SPHERE_RADIUS = 2.5 * MAZE_SCALE; // 生成される球体の最小半径。
-export const MAX_SPHERE_RADIUS = 3 * MAZE_SCALE; // 生成される球体の最大半径。
+export const MAX_SPHERE_RADIUS = 5 * MAZE_SCALE; // 生成される球体の最大半径。
 export const SPHERE_MASS = 20; // 球体の物理的な質量。
 export const SPHERE_FRICTION = 0.4; // 球体の物理的な摩擦係数。
 export const SPHERE_RESTITUTION = 0.6; // 球体の物理的な反発係数。
 export const SPHERE_INITIAL_Y_OFFSET = 10 * MAZE_SCALE; // 球体の初期配置時のY軸オフセット（床面からの高さ）。埋まらないように調整。
 
 // --- Ramiel (正八面体) 設定 ---
-export const NUM_RAMIELS = 3; // ゲーム内に生成するラミエルの数。
+export const NUM_RAMIELS = 10; // ゲーム内に生成するラミエルの数。
 export const RAMIEL_INITIAL_HP = 300; // ラミエルの初期HP
 export const RAMIEL_SIZE = 7 * MAZE_SCALE; // 生成されるラミエルの基本サイズ (OctahedronGeometryの半径に相当)。
 export const RAMIEL_CORE_RADIUS_FACTOR = 0.05; // ラミエルの中心核の半径（RAMIEL_SIZEに対する割合）。
