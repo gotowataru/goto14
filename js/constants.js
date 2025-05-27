@@ -46,7 +46,7 @@ export const ZOOM_SPEED_FACTOR = 0.1; // カメラのズーム速度係数。マ
 
 // --- プロジェクタイル (ビーム・リング) 設定 ---
 export const BEAM_COLOR = 0xffff00; // ビームの色 (16進数カラーコード、例: 黄色)。
-export const BEAM_DAMAGE = 20; // ビームの攻撃力
+export const BEAM_DAMAGE = 25; // ビームの攻撃力
 export const BEAM_RADIUS = 0.2 * MAZE_SCALE; // ビームの半径。ビームの太さを決定します。
 export const BEAM_LENGTH = 100 * MAZE_SCALE; // ビームの視覚的な長さ。
 export const BEAM_SPEED = 10 * MAZE_SCALE; // ビームの進行速度。
