@@ -1,14 +1,14 @@
 // EffectManager.js
 import * as THREE from 'three';
 import {
-    MAZE_SCALE, // 壁衝突、火花、デブリの定数で使用
+    MAZE_SCALE,
     // --- 十字架エフェクト用定数 ---
     RAMIEL_CROSS_EFFECT_ENABLED, RAMIEL_CROSS_HEIGHT, RAMIEL_CROSS_ARM_LENGTH,
     RAMIEL_CROSS_THICKNESS, RAMIEL_CROSS_COLOR, RAMIEL_CROSS_OPACITY,
     RAMIEL_CROSS_EMISSIVE_INTENSITY, RAMIEL_CROSS_DURATION,
     RAMIEL_CROSS_FADE_IN_DURATION, RAMIEL_CROSS_FADE_OUT_DURATION,
     RAMIEL_CROSS_Y_OFFSET,
-    // --- ATフィールドエフェクト用定数 ---
+    // --- ATフィールドエフェクト用定数 (Ramiel専用) ---
     RAMIEL_AT_FIELD_ENABLED, RAMIEL_AT_FIELD_COLOR, RAMIEL_AT_FIELD_RADIUS,
     RAMIEL_AT_FIELD_INITIAL_OPACITY, RAMIEL_AT_FIELD_DURATION,
     RAMIEL_AT_FIELD_FADE_OUT_START_RATIO,
@@ -17,35 +17,41 @@ import {
     RAMIEL_AT_FIELD_WAVE_START_SCALE, RAMIEL_AT_FIELD_WAVE_END_SCALE_FACTOR,
     RAMIEL_AT_FIELD_WAVE_RING_THICKNESS_RATIO,
     RAMIEL_AT_FIELD_WAVE_FADE_OUT_START_RATIO_PER_RING,
-    // RAMIEL_AT_FIELD_OFFSET_FROM_RAMIEL は Game.js で使用するためここでは不要
+
+    // 新規追加: 敵汎用ATフィールド用定数
+    ENEMY_GENERIC_AT_FIELD_ENABLED, ENEMY_GENERIC_AT_FIELD_COLOR, ENEMY_GENERIC_AT_FIELD_NUM_RINGS,
+    ENEMY_GENERIC_AT_FIELD_RING_DURATION, ENEMY_GENERIC_AT_FIELD_SPAWN_INTERVAL,
+    ENEMY_GENERIC_AT_FIELD_START_SCALE, ENEMY_GENERIC_AT_FIELD_END_SCALE_FACTOR,
+    ENEMY_GENERIC_AT_FIELD_RING_THICKNESS_RATIO, ENEMY_GENERIC_AT_FIELD_FADE_OUT_START_RATIO_PER_RING,
+    ENEMY_GENERIC_AT_FIELD_INITIAL_OPACITY,
+
 } from './constants.js';
 
 // --- (壁衝突パーティクル用) ---
 const IMPACT_PARTICLE_COUNT = 150;
 const IMPACT_PARTICLE_LIFETIME = 0.4;
-const IMPACT_PARTICLE_BASE_SPEED = 80 * (MAZE_SCALE || 1); // MAZE_SCALE を使用
+const IMPACT_PARTICLE_BASE_SPEED = 80 * (MAZE_SCALE || 1);
 const IMPACT_PARTICLE_SPREAD = 3.5;
-const IMPACT_PARTICLE_SIZE = 0.3 * (MAZE_SCALE || 1);   // MAZE_SCALE を使用
+const IMPACT_PARTICLE_SIZE = 0.3 * (MAZE_SCALE || 1);
 const IMPACT_PARTICLE_COLOR = 0xffcc66;
-const IMPACT_GRAVITY_EFFECT = 9.8 * (MAZE_SCALE || 1) * 5; // MAZE_SCALE を使用
+const IMPACT_GRAVITY_EFFECT = 9.8 * (MAZE_SCALE || 1) * 5;
 
 // --- (火花用) ---
 const SPARK_PARTICLE_COUNT = 40;
 const SPARK_LIFETIME = 0.5;
-const SPARK_BASE_SPEED = 150 * (MAZE_SCALE || 1); // MAZE_SCALE を使用
+const SPARK_BASE_SPEED = 150 * (MAZE_SCALE || 1);
 const SPARK_SPREAD = 2.0;
-const SPARK_SIZE = 1.0 * (MAZE_SCALE || 1);     // MAZE_SCALE を使用
-// SPARK_COLOR は引数で受け取る
+const SPARK_SIZE = 1.0 * (MAZE_SCALE || 1);
 
 // --- (デブリ用) ---
 const DEBRIS_COUNT = 32;
 const DEBRIS_LIFETIME = 1.0;
-const DEBRIS_BASE_SPEED = 70 * (MAZE_SCALE || 1);  // MAZE_SCALE を使用
+const DEBRIS_BASE_SPEED = 70 * (MAZE_SCALE || 1);
 const DEBRIS_SPREAD_XY = 1.8;
 const DEBRIS_SPREAD_Y_MIN = 0.4;
 const DEBRIS_SPREAD_Y_MAX = 0.8;
-const DEBRIS_BOX_SIZE = 1.0 * (MAZE_SCALE || 1); // MAZE_SCALE を使用
-const DEBRIS_GRAVITY = 9.8 * (MAZE_SCALE || 1) * 10; // MAZE_SCALE を使用
+const DEBRIS_BOX_SIZE = 1.0 * (MAZE_SCALE || 1);
+const DEBRIS_GRAVITY = 9.8 * (MAZE_SCALE || 1) * 10;
 const DEBRIS_MAX_BOUNCES = 3;
 const DEBRIS_RESTITUTION = 0.4;
 
@@ -80,7 +86,7 @@ export class EffectManager {
         this.debrisGeometry = new THREE.BoxGeometry(DEBRIS_BOX_SIZE, DEBRIS_BOX_SIZE, DEBRIS_BOX_SIZE);
         this.debrisBaseMaterial = new THREE.MeshStandardMaterial({ roughness: 0.8, metalness: 0.2 });
 
-        // ATフィールド用ジオメトリ
+        // ATフィールド用ジオメトリ (Ramiel専用: RAMIEL_AT_FIELD_IS_WAVE_EFFECT = false の場合のみ)
         if (RAMIEL_AT_FIELD_ENABLED && !RAMIEL_AT_FIELD_IS_WAVE_EFFECT) { 
              this.atFieldGeometry = new THREE.CircleGeometry(RAMIEL_AT_FIELD_RADIUS, 8);
         }
@@ -206,9 +212,7 @@ export class EffectManager {
         this.activeEffects.push(crossGroup);
     }
 
-// ★★★ ↓このコメントをGeminiが勝手に消すので注意！ Fixed, DO NOT CHANGE - Gemini ★★★
-// Geminiは触るな。コメントも残す。ここを Gemini が勝手に修正する時があるので注意 // Fixed, DO NOT CHANGE - Gemini
-    // --- ATフィールド風エフェクト生成メソッド ---
+    // --- Ramiel専用のATフィールド風エフェクト生成メソッド ---
     createRamielATFieldEffect(position, facingDirection, isVertical = false) {
         if (!RAMIEL_AT_FIELD_ENABLED) {
             return;
@@ -217,15 +221,15 @@ export class EffectManager {
         const now = performance.now();
 
         if (RAMIEL_AT_FIELD_IS_WAVE_EFFECT) {
-            // --- 波紋エフェクトの生成 ---
+            // --- 波紋エフェクトの生成 (Ramiel専用) ---
             const effectGroup = new THREE.Group();
             effectGroup.position.copy(position);
 
-            // 向き設定 ここのifブロックは、Geminiが勝手に修正する時があるので注意
+            // 向き設定
             if (isVertical) {
                 const meshNormal = new THREE.Vector3(0, 0, 1);
                 const targetDirection = facingDirection.clone().normalize();
-                targetDirection.y = 0; //ここは正しい。触るな。Geminiが勝手に修正する時があるので注意
+                targetDirection.y = 0;
                 if (targetDirection.lengthSq() < 0.001) {
                     targetDirection.set(1, 0, 0); // フォールバック
                 }
@@ -260,7 +264,8 @@ export class EffectManager {
                     animationEndTime: now + (i * RAMIEL_AT_FIELD_WAVE_SPAWN_INTERVAL + RAMIEL_AT_FIELD_WAVE_RING_DURATION) * 1000,
                     isSpawned: false,
                     maxOpacity: RAMIEL_AT_FIELD_INITIAL_OPACITY,
-                    targetScale: RAMIEL_AT_FIELD_WAVE_END_SCALE_FACTOR, // この値は使わないかも (baseRingGeometryが既にend_scaleで作られているため)
+                    startScale: RAMIEL_AT_FIELD_WAVE_START_SCALE, // ★ 追加
+                    endScale: RAMIEL_AT_FIELD_WAVE_END_SCALE_FACTOR, // ★ 追加
                     ringLifetimeMs: RAMIEL_AT_FIELD_WAVE_RING_DURATION * 1000,
                     fadeOutStartRatio: RAMIEL_AT_FIELD_WAVE_FADE_OUT_START_RATIO_PER_RING
                 };
@@ -268,9 +273,8 @@ export class EffectManager {
             }
 
             effectGroup.userData = {
-                type: 'ramiel_at_field_wave', // 新しいエフェクトタイプ
+                type: 'ramiel_at_field_wave',
                 creationTime: now,
-                // グループ全体の寿命は、最後のリングのアニメーション終了時刻
                 overallEndTime: now + ((RAMIEL_AT_FIELD_WAVE_NUM_RINGS - 1) * RAMIEL_AT_FIELD_WAVE_SPAWN_INTERVAL + RAMIEL_AT_FIELD_WAVE_RING_DURATION) * 1000,
             };
 
@@ -278,8 +282,8 @@ export class EffectManager {
             this.activeEffects.push(effectGroup);
 
         } else {
-            // --- 従来の単一板エフェクトの生成 ---
-            if (!this.atFieldGeometry) { // 万が一、初期化されていなかった場合
+            // --- 従来の単一板エフェクトの生成 (Ramiel専用) ---
+            if (!this.atFieldGeometry) {
                 this.atFieldGeometry = new THREE.CircleGeometry(RAMIEL_AT_FIELD_RADIUS, 8);
             }
             const material = new THREE.MeshBasicMaterial({
@@ -300,7 +304,7 @@ export class EffectManager {
                 atFieldMesh.quaternion.setFromUnitVectors(meshNormal, targetDirection);
             }
             atFieldMesh.userData = {
-                type: 'ramiel_at_field', // 従来のタイプ
+                type: 'ramiel_at_field',
                 creationTime: now,
                 lifetime: RAMIEL_AT_FIELD_DURATION,
                 initialOpacity: RAMIEL_AT_FIELD_INITIAL_OPACITY,
@@ -310,9 +314,74 @@ export class EffectManager {
             this.activeEffects.push(atFieldMesh);
         }
     }
-// Geminiは触るな。コメントも残す。ここを Gemini が勝手に修正する時があるので注意 // Fixed, DO NOT CHANGE - Gemini
-// ★★★ ↑このコメントをGeminiが勝手に消すので注意！ Fixed, DO NOT CHANGE - Gemini ★★★
 
+    // 新規追加: 汎用波紋ATフィールドエフェクト生成メソッド
+    createGenericWaveATFieldEffect(position, facingDirection, radius, color,
+                                    initialOpacity, numRings, ringDuration, spawnInterval,
+                                    startScale, endScaleFactor, ringThicknessRatio, fadeOutStartRatioPerRing) {
+        if (!ENEMY_GENERIC_AT_FIELD_ENABLED) { // 全体設定で無効なら即座にリターン
+            return;
+        }
+
+        const now = performance.now();
+        const effectGroup = new THREE.Group();
+        effectGroup.position.copy(position);
+
+        // 向き設定 (ビームが来た方向やプレイヤーの方向など)
+        const meshNormal = new THREE.Vector3(0, 0, 1); // デフォルトのリングの向き
+        const targetDirection = facingDirection.clone().normalize();
+        targetDirection.y = 0; // 水平方向のみ考慮
+        if (targetDirection.lengthSq() < 0.001) {
+            targetDirection.set(1, 0, 0); // フォールバック: 零ベクトルだった場合はX方向を向かせる
+        }
+        targetDirection.normalize();
+        effectGroup.quaternion.setFromUnitVectors(meshNormal, targetDirection);
+
+        const outerR = radius * endScaleFactor;
+        const innerR = outerR * (1 - ringThicknessRatio);
+
+        // リングのジオメトリは共通なので、一度作成すれば良い
+        const baseRingGeometry = new THREE.RingGeometry(
+            innerR, outerR,
+            8, // thetaSegments (八角形)
+            1, // phiSegments
+            0, Math.PI * 2
+        );
+
+        for (let i = 0; i < numRings; i++) {
+            const material = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0, // 初期は透明
+                side: THREE.DoubleSide,
+                depthWrite: false,
+            });
+
+            const ringMesh = new THREE.Mesh(baseRingGeometry, material);
+            ringMesh.scale.set(startScale, startScale, 1);
+
+            ringMesh.userData = {
+                spawnTime: now + i * spawnInterval * 1000,
+                animationEndTime: now + (i * spawnInterval + ringDuration) * 1000,
+                isSpawned: false,
+                maxOpacity: initialOpacity,
+                startScale: startScale, // ★ userDataに保存
+                endScale: endScaleFactor, // ★ userDataに保存
+                ringLifetimeMs: ringDuration * 1000,
+                fadeOutStartRatio: fadeOutStartRatioPerRing
+            };
+            effectGroup.add(ringMesh);
+        }
+
+        effectGroup.userData = {
+            type: 'generic_at_field_wave', // 新しいタイプ
+            creationTime: now,
+            overallEndTime: now + ((numRings - 1) * spawnInterval + ringDuration) * 1000,
+        };
+
+        this.scene.add(effectGroup);
+        this.activeEffects.push(effectGroup);
+    }
 
 
     // 唯一の update メソッド
@@ -342,7 +411,7 @@ export class EffectManager {
                             currentZ + velocities[j].z * delta
                         );
                         if (effectUserData.type === 'impact_particle') {
-                            velocities[j].y -= IMPACT_GRAVITY_EFFECT * delta; // 定数 IMPACT_GRAVITY_EFFECT がスコープ内にあること
+                            velocities[j].y -= IMPACT_GRAVITY_EFFECT * delta;
                         }
                     }
                 }
@@ -350,11 +419,10 @@ export class EffectManager {
                 if (allParticlesInEffectExpired || (now - effectUserData.creationTime) / 1000 > effectLifetime + 0.1) {
                     this.scene.remove(effect);
                     if (effect.geometry) effect.geometry.dispose();
-                    // spark_particle はマテリアルをクローンしているので、isSharedMaterial チェックは不要
                     if (effect.material && effect.material.dispose && (effectUserData.type === 'impact_particle' && !this.isSharedMaterial(effect.material))) {
                         effect.material.dispose();
                     } else if (effect.material && effect.material.dispose && effectUserData.type === 'spark_particle'){
-                         effect.material.dispose(); // sparkのマテリアルは毎回cloneなので常にdispose
+                         effect.material.dispose();
                     }
                     this.activeEffects.splice(i, 1);
                 }
@@ -367,12 +435,12 @@ export class EffectManager {
                     if (elapsedTime < debrisData.lifetime && debrisMesh.visible) {
                         activeDebrisCount++;
                         debrisMesh.position.addScaledVector(debrisData.velocity, delta);
-                        debrisData.velocity.y -= DEBRIS_GRAVITY * delta; // 定数 DEBRIS_GRAVITY がスコープ内にあること
+                        debrisData.velocity.y -= DEBRIS_GRAVITY * delta;
                         debrisMesh.rotation.x += debrisData.angularVelocity.x * delta;
                         debrisMesh.rotation.y += debrisData.angularVelocity.y * delta;
                         debrisMesh.rotation.z += debrisData.angularVelocity.z * delta;
-                        const groundY = 0; // 地面のY座標 (必要に応じて調整)
-                        const debrisBottomY = debrisMesh.position.y - (debrisMesh.geometry.parameters.height || DEBRIS_BOX_SIZE) / 2; // 定数 DEBRIS_BOX_SIZE
+                        const groundY = 0;
+                        const debrisBottomY = debrisMesh.position.y - (debrisMesh.geometry.parameters.height || DEBRIS_BOX_SIZE) / 2;
                         if (debrisBottomY <= groundY && debrisData.velocity.y < 0) {
                             if (debrisData.bounces < debrisData.maxBounces) {
                                 debrisMesh.position.y = groundY + (debrisMesh.geometry.parameters.height || DEBRIS_BOX_SIZE) / 2;
@@ -393,7 +461,7 @@ export class EffectManager {
                 if (activeDebrisCount === 0 && effect.children.length > 0) {
                     let allInvisible = true;
                     effect.children.forEach(child => { if (child.visible) allInvisible = false; });
-                    if (allInvisible || (now - effectUserData.creationTime) / 1000 > (DEBRIS_LIFETIME + 2.0)) { // 定数 DEBRIS_LIFETIME
+                    if (allInvisible || (now - effectUserData.creationTime) / 1000 > (DEBRIS_LIFETIME + 2.0)) {
                         effect.children.forEach(child => {
                             if (child.geometry) child.geometry.dispose();
                             if (child.material && child.material.dispose) child.material.dispose();
@@ -409,10 +477,10 @@ export class EffectManager {
                 const data = effectUserData;
                 const elapsedTime = (now - data.creationTime) / 1000;
                 let currentOpacity = 0;
-                if (elapsedTime < data.lifetime) { // data.lifetime (RAMIEL_CROSS_DURATION)
-                    if (elapsedTime < data.fadeInDuration) { // data.fadeInDuration (RAMIEL_CROSS_FADE_IN_DURATION)
-                        currentOpacity = RAMIEL_CROSS_OPACITY * (elapsedTime / data.fadeInDuration); // 定数 RAMIEL_CROSS_OPACITY
-                    } else if (elapsedTime < data.lifetime - data.fadeOutDuration) { // data.fadeOutDuration (RAMIEL_CROSS_FADE_OUT_DURATION)
+                if (elapsedTime < data.lifetime) {
+                    if (elapsedTime < data.fadeInDuration) {
+                        currentOpacity = RAMIEL_CROSS_OPACITY * (elapsedTime / data.fadeInDuration);
+                    } else if (elapsedTime < data.lifetime - data.fadeOutDuration) {
                         currentOpacity = RAMIEL_CROSS_OPACITY;
                     } else {
                         const fadeOutElapsedTime = elapsedTime - (data.lifetime - data.fadeOutDuration);
@@ -434,16 +502,18 @@ export class EffectManager {
                     this.activeEffects.splice(i, 1);
                 }
             }
-            else if (effectUserData.type === 'ramiel_at_field_wave') {
+            // ★ ramiel_at_field_wave と generic_at_field_wave をまとめて処理
+            else if (effectUserData.type === 'ramiel_at_field_wave' || effectUserData.type === 'generic_at_field_wave') {
                 const groupData = effectUserData;
-                let allRingsProcessedForThisFrame = true; // このフレームで全リングが処理済みか (寿命ではない)
+                // let allRingsProcessedForThisFrame = true; // 今回は使用しないためコメントアウト
 
-                if (now > groupData.overallEndTime + 100) { // グループ全体の終了時刻 (バッファ込)
+                if (now > groupData.overallEndTime + 100) {
                     let baseGeoDisposed = false;
                     effect.children.forEach(ringMesh => {
+                        // RingGeometryは各エフェクト生成時に新しく作られるため、常にdisposeして良い
                         if (ringMesh.geometry && !baseGeoDisposed) {
-                             ringMesh.geometry.dispose(); // 共有ジオメトリなので一度だけ
-                             baseGeoDisposed = true;
+                             ringMesh.geometry.dispose();
+                             baseGeoDisposed = true; // ジオメトリは各グループで1つだけなので、一度disposeしたらフラグを立てる
                         }
                         if (ringMesh.material) ringMesh.material.dispose();
                     });
@@ -456,28 +526,23 @@ export class EffectManager {
                     const ringData = ringMesh.userData;
 
                     if (now < ringData.spawnTime) {
-                        allRingsProcessedForThisFrame = false; // まだ出現していないリングがある
-                        return; // このリングはまだ処理しない
+                        // allRingsProcessedForThisFrame = false; // 今回は使用しないためコメントアウト
+                        return;
                     }
 
-                    // リングがまだアクティブ (寿命内) か、またはまだ一度もスポーンしていない場合
                     if (now < ringData.animationEndTime || !ringData.isSpawned) {
-                         allRingsProcessedForThisFrame = false; // アクティブなリングがある
+                         // allRingsProcessedForThisFrame = false; // 今回は使用しないためコメントアウト
 
                         if (!ringData.isSpawned) {
-                            // 初回出現時の処理
-                            // ringMesh.material.opacity はアニメーションで設定されるので、ここでは直接設定しない
                             ringData.isSpawned = true;
                         }
 
                         const ringElapsedTimeMs = now - ringData.spawnTime;
-                        // 0.0 (出現時) から 1.0 (寿命終了時) までの進捗
                         const ringLifeProgress = Math.min(1.0, ringElapsedTimeMs / ringData.ringLifetimeMs);
 
-                        // スケールアニメーション
-                        // RAMIEL_AT_FIELD_WAVE_START_SCALE から 1.0 へ
-                        const currentScaleValue = RAMIEL_AT_FIELD_WAVE_START_SCALE +
-                                               (1.0 - RAMIEL_AT_FIELD_WAVE_START_SCALE) * ringLifeProgress;
+                        // スケールアニメーション: userDataに保存された startScale と endScale を使用
+                        const currentScaleValue = ringData.startScale +
+                                               (ringData.endScale - ringData.startScale) * ringLifeProgress;
                         ringMesh.scale.set(currentScaleValue, currentScaleValue, 1);
 
                         // フェードアウトアニメーション
@@ -485,7 +550,7 @@ export class EffectManager {
                             const fadeOutProgress = (ringLifeProgress - ringData.fadeOutStartRatio) / (1.0 - ringData.fadeOutStartRatio);
                             ringMesh.material.opacity = ringData.maxOpacity * (1.0 - Math.min(1.0, fadeOutProgress));
                         } else {
-                            ringMesh.material.opacity = ringData.maxOpacity; // フェードアウト前は最大不透明度
+                            ringMesh.material.opacity = ringData.maxOpacity;
                         }
                         ringMesh.visible = ringMesh.material.opacity > 0.01;
 
@@ -495,14 +560,13 @@ export class EffectManager {
                         ringMesh.visible = false;
                     }
                 });
-                // グループ全体の削除は overallEndTime で行うので、ここでは個別のリングが全て完了しても何もしない
 
-            } else if (effectUserData.type === 'ramiel_at_field') { // 従来の単一板エフェクト
+            } else if (effectUserData.type === 'ramiel_at_field') {
                 const elapsedTime = (now - effectUserData.creationTime) / 1000;
-                const lifetime = effectUserData.lifetime; // RAMIEL_AT_FIELD_DURATION
+                const lifetime = effectUserData.lifetime;
                 if (elapsedTime < lifetime) {
-                    let currentOpacity = effectUserData.initialOpacity; // RAMIEL_AT_FIELD_INITIAL_OPACITY
-                    const fadeOutStartTime = lifetime * effectUserData.fadeOutStartRatio; // RAMIEL_AT_FIELD_FADE_OUT_START_RATIO
+                    let currentOpacity = effectUserData.initialOpacity;
+                    const fadeOutStartTime = lifetime * effectUserData.fadeOutStartRatio;
                     const fadeOutDuration = lifetime * (1.0 - effectUserData.fadeOutStartRatio);
 
                     if (elapsedTime > fadeOutStartTime && fadeOutDuration > 0) {
@@ -513,7 +577,6 @@ export class EffectManager {
                     effect.visible = effect.material.opacity > 0.01;
                 } else {
                     this.scene.remove(effect);
-                    // 単一板のジオメトリが this.atFieldGeometry であり共有されている場合、disposeしない
                     if (effect.geometry && effect.geometry !== this.atFieldGeometry) {
                          effect.geometry.dispose();
                     }

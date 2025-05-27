@@ -2,9 +2,9 @@
 import * as THREE from 'three';
 import {
     CHARACTER_HEIGHT, CHARACTER_RADIUS, CHARACTER_MASS,
-    CHARACTER_FRICTION, CHARACTER_RESTITUTION, // これらは PhysicsManager.createCharacterPhysicsBody で直接使用
-//     // CHARACTER_COMPOUND_SHAPE_DETAILS は constants.js から削除されたため、ここでもインポートしない
-//     // ジャンプ関連の定数をインポート
+    CHARACTER_FRICTION, CHARACTER_RESTITUTION,
+// ★★★ ↓このコメントをGeminiが勝手に消すので注意！ Fixed, DO NOT CHANGE - Gemini ★★★
+//     // ジャンプ関連の定数をインポート 残す。
 //     CHARACTER_JUMP_FORCE, // または CHARACTER_JUMP_INITIAL_VELOCITY
 //     CHARACTER_MAX_JUMPS,
 } from './constants.js';
@@ -26,27 +26,16 @@ export class Character {
         this.currentActionName = null;
         this.onAnimationFinishedCallback = null;
 
-        this.canPlayAction = true; // キックなどの単発アクション用
+        this.canPlayAction = true;
         this.moveDirection = new THREE.Vector3();
         this.cameraDirection = new THREE.Vector3();
         this.physicsBody = null;
         this.isMoving = false;
         this.kickActionStartTime = null;
         this.beamGeneratedDuringKick = false;
-
-//         // --- ジャンプ関連のプロパティ追加 ---
-//         this.isJumping = false;         // 現在ジャンプアニメーション中か、または空中にいるか
-           this.isGrounded = true;         // 地面に接しているか ジャンプしないので常に地上で固定
-//         this.canJump = true;            // ジャンプ入力が可能か
-//         this.jumpCount = 0;             // 現在のジャンプ回数
-//         this.lastGroundNormal = new THREE.Vector3(0, 1, 0); //最後に接地していた地面の法線（坂道判定用）
-//         // --- ジャンプ関連ここまで ---
-
-        // ★ characterConfigオブジェクトを生成する部分は削除し、元のPhysicsManagerの引数に直接渡す形に戻す ★
-        // this.characterConfig = { ... }; のブロックは不要になります。
+        this.isGrounded = true;
 
         this._setupAnimations(animations);
-        // ★ _createPhysicsBody の引数を元の形に戻す ★
         this._createPhysicsBody(initialPosition, CHARACTER_HEIGHT, CHARACTER_RADIUS, CHARACTER_MASS);
 
         this.mixer.addEventListener('finished', this._onAnimationFinished.bind(this));
@@ -64,7 +53,7 @@ export class Character {
                 //     this.actions[name].setLoop(THREE.LoopOnce);
                 //     this.actions[name].clampWhenFinished = true;
                 // --- JUMP: ここまで ---
-                } else { // kick など
+                } else {
                     this.actions[name].setLoop(THREE.LoopOnce);
                     this.actions[name].clampWhenFinished = true;
                 }
@@ -79,30 +68,28 @@ export class Character {
         }
     }
 
-    /**
-     * キャラクターの物理ボディを作成し、PhysicsManagerに登録します。
-     * @param {THREE.Vector3} initialPosition - 物理ボディの初期位置
-     * @param {number} height - キャラクターの高さ
-     * @param {number} radius - キャラクターの半径
-     * @param {number} mass - キャラクターの質量
-     */
-    _createPhysicsBody(initialPosition, height, radius, mass) { // ★ 引数を元の形に戻す
+    _createPhysicsBody(initialPosition, height, radius, mass) {
         if (!this.physicsManager || !this.physicsManager.isInitialized()) {
             console.error("Character: PhysicsManager not ready. Cannot create physics body.");
             return;
         }
-        // PhysicsManagerのcreateCharacterPhysicsBodyに直接 height, radius, mass を渡す
+
+        const playerPhysicsProperties = {
+            friction: CHARACTER_FRICTION,
+            restitution: CHARACTER_RESTITUTION
+        };
+
         this.physicsBody = this.physicsManager.createCharacterPhysicsBody(
             initialPosition,
-            height, // ★ 直接渡す
-            radius, // ★ 直接渡す
-            mass    // ★ 直接渡す
+            height,
+            radius,
+            mass,
+            playerPhysicsProperties
         );
 
         if (this.physicsBody) {
-            this.physicsBody.setAngularFactor(new this.physicsManager.AmmoAPI.btVector3(0, 1, 0)); // Y軸回転のみ許可
-            // FrictionとRestitutionはPhysicsManagerのcreateCharacterPhysicsBody内で constants から設定される
-            this.syncPhysicsToModel(this.physicsManager.getTempTransform(), height); // ★ height 引数を再度渡す
+            this.physicsBody.setAngularFactor(new this.physicsManager.AmmoAPI.btVector3(0, 1, 0));
+            this.syncPhysicsToModel(this.physicsManager.getTempTransform(), height);
         } else {
             console.error("Character._createPhysicsBody: Failed to create physics body.");
         }
@@ -118,7 +105,6 @@ export class Character {
     }
 
     switchAnimation(name, crossFadeDuration = 0.2) {
-
         if (!this.mixer || !this.actions[name]) {
             return;
         }
@@ -167,34 +153,33 @@ export class Character {
         let targetSpeed = 0;
         const effectiveSpeed = speed;
 
-    if (!disableMovementInput) {
-        const isTryingToMove = moveF || moveB || moveL || moveR;
+        if (!disableMovementInput) {
+            const isTryingToMove = moveF || moveB || moveL || moveR;
             if (isTryingToMove) {
-            this.isMoving = true;
-            camera.getWorldDirection(this.cameraDirection);
-            this.cameraDirection.y = 0;
-            this.cameraDirection.normalize();
-            const rightDirection = new THREE.Vector3().crossVectors(this.cameraDirection, camera.up).normalize();
+                this.isMoving = true;
+                camera.getWorldDirection(this.cameraDirection);
+                this.cameraDirection.y = 0;
+                this.cameraDirection.normalize();
+                const rightDirection = new THREE.Vector3().crossVectors(this.cameraDirection, camera.up).normalize();
 
-            if (moveF) this.moveDirection.add(this.cameraDirection);
-            if (moveB) this.moveDirection.sub(this.cameraDirection);
-            if (moveL) this.moveDirection.sub(rightDirection);
-            if (moveR) this.moveDirection.add(rightDirection);
+                if (moveF) this.moveDirection.add(this.cameraDirection);
+                if (moveB) this.moveDirection.sub(this.cameraDirection);
+                if (moveL) this.moveDirection.sub(rightDirection);
+                if (moveR) this.moveDirection.add(rightDirection);
 
-            if (this.moveDirection.lengthSq() > 0) {
-                this.moveDirection.normalize();
-                targetSpeed = effectiveSpeed;
-
-                const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(this.localForwardDirection, this.moveDirection);
-                this.model.quaternion.slerp(targetQuaternion, rotationSpeed * delta * 5.0);
+                if (this.moveDirection.lengthSq() > 0) {
+                    this.moveDirection.normalize();
+                    targetSpeed = effectiveSpeed;
+                    const targetQuaternion = new THREE.Quaternion().setFromUnitVectors(this.localForwardDirection, this.moveDirection);
+                    this.model.quaternion.slerp(targetQuaternion, rotationSpeed * delta * 5.0);
+                }
             }
         }
-    }
 
         const currentVelocity = this.physicsBody.getLinearVelocity();
         const desiredVelocity = new this.physicsManager.AmmoAPI.btVector3(
             this.moveDirection.x * targetSpeed,
-            currentVelocity.y(), // Y方向の速度はジャンプと重力に任せる
+            currentVelocity.y(),
             this.moveDirection.z * targetSpeed
         );
         this.physicsBody.setLinearVelocity(desiredVelocity);
@@ -205,7 +190,6 @@ export class Character {
 
         const actualHorizontalSpeed = Math.sqrt(desiredVelocity.x() * desiredVelocity.x() + desiredVelocity.z() * desiredVelocity.z());
 
-        // --- アニメーションの更新 ---
         let targetAnimation;
          if (this.currentActionName === 'kick' && this.actions['kick'] && this.actions['kick'].isRunning()) {
              targetAnimation = 'kick';
@@ -222,23 +206,15 @@ export class Character {
          }
 
          this.mixer.update(delta);
-     } 
+     }
 
-    /**
-     * Ammo.jsの物理ボディの位置・回転をThree.jsのモデルに同期します。
-     * @param {Ammo.btTransform} tempTransform - Ammo.jsの一時的な変換オブジェクト
-     * @param {number} characterHeight - キャラクターの高さ (物理ボディのYオフセット計算用)
-     */
-    syncPhysicsToModel(tempTransform, characterHeight) { // ★ characterHeight 引数を再度追加
+    syncPhysicsToModel(tempTransform, characterHeight) {
         if (this.model && this.physicsBody && tempTransform) {
             const motionState = this.physicsBody.getMotionState();
             if (motionState) {
                 motionState.getWorldTransform(tempTransform);
                 const p = tempTransform.getOrigin();
-                // 物理ボディの原点（カプセルの中心）から、Three.jsモデルの原点（足元）へのオフセットを適用
-                // p.y() は物理ボディの重心のY座標
-                // characterHeight / 2 は、モデルの原点（足元）からその高さの中心までの距離
-                this.model.position.set(p.x(), p.y() - characterHeight / 2, p.z()); // ★ Yオフセット計算を元の形に戻す
+                this.model.position.set(p.x(), p.y() - characterHeight / 2, p.z());
             }
         }
     }

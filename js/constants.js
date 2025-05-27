@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 
 // --- モデル・アニメーション関連 ---
-export const MAZE_MODEL_PATH = './models/debug_map08.glb'; // 迷路の3Dモデルファイルのパス。変更すると読み込まれる迷路が変わります。
+export const MAZE_MODEL_PATH = './models/debug_map09.glb'; // 迷路の3Dモデルファイルのパス。変更すると読み込まれる迷路が変わります。
 export const CHARACTER_BASE_MODEL_PATH = './models/idol_20250519_01.fbx'; // キャラクターの基本（アイドル状態などのベース）モデルファイルのパス。idle.fbx　box　idol_20250519_2
 export const ANIMATION_PATHS = { // キャラクターのアニメーションファイルパス。各動作のアニメーションを変更します。
     idle: './models/idol_20250519_01.fbx',    // アイドル状態のアニメーション
@@ -124,24 +124,24 @@ export const MINIMAP_INDICATOR_SIZE = CHARACTER_RADIUS * 40; // ミニマップ�
 // --- 物理演算関連 ---
 export const GRAVITY = -10 * CHARACTER_INITIAL_SCALE * 2; // 物理エンジンで使用する重力加速度。キャラクターのスケールに合わせて調整されています。負の値で下向き。
 export const CHARACTER_MASS = 40; // キャラクターの物理的な質量 (kg相当)。衝突時の挙動に影響します。
-export const CHARACTER_FRICTION = 0.7; // キャラクターの物理的な摩擦係数 (0-1)。地面との滑りやすさに影響。大きいほど滑りにくい。現在0.5
+export const CHARACTER_FRICTION = 0.9; // キャラクターの物理的な摩擦係数 (0-1)。地面との滑りやすさに影響。大きいほど滑りにくい。
 export const CHARACTER_RESTITUTION = 0.1; // キャラクターの物理的な反発係数 (0-1)。衝突時の跳ね返りやすさに影響。0で跳ね返らず、1で完全に跳ね返る。
-export const WALL_FRICTION = 0.7; // 壁の物理的な摩擦係数。現在0.5
+export const WALL_FRICTION = 0.7; // 壁の物理的な摩擦係数。
 export const WALL_RESTITUTION = 0.5; // 壁の物理的な反発係数。
 // export const CHARACTER_AIR_CONTROL_FACTOR = 0.5; // 空中での移動制御の効き具合 (1で地上と同じ)
 
 
 // --- 球体 (Sphere) 設定 ---
-export const NUM_SPHERES = 30; // ゲーム内に生成する球体の数。
+export const NUM_SPHERES = 25; // ゲーム内に生成する球体の数。
 export const MIN_SPHERE_RADIUS = 2.5 * MAZE_SCALE; // 生成される球体の最小半径。
-export const MAX_SPHERE_RADIUS = 5 * MAZE_SCALE; // 生成される球体の最大半径。
+export const MAX_SPHERE_RADIUS = 3 * MAZE_SCALE; // 生成される球体の最大半径。
 export const SPHERE_MASS = 20; // 球体の物理的な質量。
 export const SPHERE_FRICTION = 0.4; // 球体の物理的な摩擦係数。
 export const SPHERE_RESTITUTION = 0.6; // 球体の物理的な反発係数。
 export const SPHERE_INITIAL_Y_OFFSET = 10 * MAZE_SCALE; // 球体の初期配置時のY軸オフセット（床面からの高さ）。埋まらないように調整。
 
 // --- Ramiel (正八面体) 設定 ---
-export const NUM_RAMIELS = 10; // ゲーム内に生成するラミエルの数。
+export const NUM_RAMIELS = 7; // ゲーム内に生成するラミエルの数。
 export const RAMIEL_INITIAL_HP = 300; // ラミエルの初期HP
 export const RAMIEL_SIZE = 7 * MAZE_SCALE; // 生成されるラミエルの基本サイズ (OctahedronGeometryの半径に相当)。
 export const RAMIEL_CORE_RADIUS_FACTOR = 0.05; // ラミエルの中心核の半径（RAMIEL_SIZEに対する割合）。
@@ -258,25 +258,140 @@ export const SFX_BEAM_VOLUME = 0.04;
 export const SFX_BEAM_LOOP = false; // 効果音は通常ループしない
 
 // --- Enemy: Enemy_001 設定 ---
-export const ENEMY_001_NUM_INSTANCES = 1; // 初期配置数 (テスト用に1体)
-export const ENEMY_001_MODEL_PATH = './models/test_Enemy_idol_20250526_01.fbx';
+// export const ENEMY_001_NUM_INSTANCES = 1; // テスト用1体の初期配置数
+export const ENEMY_001_MODEL_PATH = './models/test_Enemy_idol_20250527_01アニメ無し.fbx';
 export const ENEMY_001_ANIMATIONS = {
-    idle: './models/test_Enemy_idol_20250526_01.fbx', // アイドルアニメーションはモデルファイル自体に含まれる
-    run: './models/enemy_001_run.fbx',
-    attack: './models/enemy_001_attack.fbx'
+    idle: './models/test_Enemy_idol_20250526_02骨のみ.fbx', // アイドルアニメーションはモデルファイル自体に含まれる
+    run: './models/test_Enemy_run_20250526_03.fbx',
+    attack: './models/test_Enemy_attack_20250526_02.fbx'
 };
-export const ENEMY_001_INITIAL_POSITIONS = [ // 各インスタンスの初期位置 (配列で複数指定可能)
-    new THREE.Vector3(40, 1, -40) // 例: (x, y, z) - Yはキャラクター同様、地面からの高さを調整
-    // , new THREE.Vector3(-5, 1, -5) // 複数配置する場合
-];
+// export const ENEMY_001_INITIAL_POSITIONS = [
+//    new THREE.Vector3(80, 1, -80) //  (x, y, z) - Yはキャラクター同様、地面からの高さを調整（テスト用1体の初期配置）
+//];
+
 export const ENEMY_001_SCALE = 1.0; // モデルの倍率
 export const ENEMY_001_BASE_HEIGHT = 2.0; // モデルの基準身長
 export const ENEMY_001_BASE_RADIUS = 0.5; // モデルの基準半径
 export const ENEMY_001_HEIGHT = ENEMY_001_BASE_HEIGHT * ENEMY_001_SCALE;
 export const ENEMY_001_RADIUS = ENEMY_001_BASE_RADIUS * ENEMY_001_SCALE;
-export const ENEMY_001_MASS = 50;
-export const ENEMY_001_FRICTION = 0.5;
-export const ENEMY_001_RESTITUTION = 0.1;
-export const ENEMY_001_HP = 9999;
-export const ENEMY_001_ATTACK_DAMAGE = 5;
+export const ENEMY_001_MASS = 5000; // モデルの質量
+export const ENEMY_001_FRICTION = 0.9; // モデルの摩擦係数 (0に近いとツルツル、1に近いとザラザラ)。
+export const ENEMY_001_RESTITUTION = 0.1; // モデルの反発係数 (0で全く跳ね返らず、1で完全に跳ね返り)。
+export const ENEMY_001_HP = 200;// 最大HP
+export const ENEMY_001_ATTACK_DAMAGE = 5;// 攻撃力
 export const ENEMY_001_LOCAL_FORWARD = new THREE.Vector3(0, 0, 1); // モデルの前方方向
+export const ENEMY_001_MOVE_SPEED = 15.0; // 移動時の速度
+
+// 停止と移動の固定値はやめてみる。
+// export const ENEMY_001_IDLE_DURATION = 3.0; // 停止状態の持続時間 (秒)
+// export const ENEMY_001_RUN_DURATION = 3.0;  // 移動状態の持続時間 (秒)
+
+export const ENEMY_001_IDLE_DURATION_MIN = 1.0; // アイドル状態の最短持続時間 (秒)
+export const ENEMY_001_IDLE_DURATION_MAX = 4.0; // アイドル状態の最長持続時間 (秒)
+
+export const ENEMY_001_RUN_DURATION_MIN = 3.0;  // 移動状態の最短持続時間 (秒)
+export const ENEMY_001_RUN_DURATION_MAX = 7.0;  // 移動状態の最長持続時間 (秒)
+
+// 旋回に関する定数
+export const ENEMY_001_TURN_CHANCE = 0.5;         // RUN状態に入る前に旋回する確率 (0.0 - 1.0)
+export const ENEMY_001_TURN_SPEED = Math.PI;  // 旋回速度 (ラジアン/秒)
+
+// ENEMY_001_TURN_SPEED = Math.PI / 2; (90度/秒) なら、約1秒で旋回完了。
+// ENEMY_001_TURN_SPEED = Math.PI; (180度/秒) なら、約0.5秒で旋回完了。
+// ENEMY_001_TURN_SPEED = Math.PI / 4; (45度/秒) なら、約2秒で旋回完了。
+
+export const ENEMY_001_MAX_CONSECUTIVE_STRAIGHTS = 2; // 同じ方向に連続で直進できる最大回数
+
+
+
+// --- Enemy_001 スポーン設定 (フェーズ1: 固定座標指定) ---
+export const ENEMY_001_SPAWN_SETTINGS = {
+    /**
+     * 敵のスポーン方法を指定します。
+     * 'FIXED': INITIAL_POSITIONS 配列に定義された固定座標を使用します。
+     * (将来用) 'RANDOM_IN_AREA': 指定エリア内にランダムに配置します。
+     * (将来用) 'FIXED_FROM_LIST_RANDOM': POSSIBLE_SPAWN_POINTS リストからランダムに選択して配置します。
+     */
+    METHOD: 'FIXED',
+
+    /**
+     * METHOD が 'FIXED' の場合に、実際に生成する敵のインスタンス数。
+     * この数は INITIAL_POSITIONS 配列の要素数以下である必要があります。
+     * もしこの値が INITIAL_POSITIONS.length より大きい場合、
+     * EnemyManager は INITIAL_POSITIONS.length に合わせて調整します。
+     */
+    NUM_INSTANCES: 20, // 3体生成する場合は3
+
+    /**
+     * METHOD が 'FIXED' の場合に参照する、敵の初期位置の座標リスト。
+     * new THREE.Vector3(x, y, z) 形式で指定します。
+     * Y座標は、敵モデルの足元が地面に適切に接するよう調整してください。
+     */
+    INITIAL_POSITIONS: [
+        new THREE.Vector3(20, 1, -20),   // 1体目の初期位置
+        new THREE.Vector3(80, 1, -70),   // 2体目の初期位置
+        new THREE.Vector3(120, 1, -140),   // 3体目の初期位置
+        new THREE.Vector3(150, 1, -170),
+        new THREE.Vector3(160, 1, -120),
+        new THREE.Vector3(-30, 1, 30),
+        new THREE.Vector3(-40, 1, 80),
+        new THREE.Vector3(-130, 1, 50),
+        new THREE.Vector3(-180, 1, 70),
+        new THREE.Vector3(-180, 1, 130),
+
+        new THREE.Vector3(25, 1, -25),
+        new THREE.Vector3(85, 1, -75),
+        new THREE.Vector3(125, 1, -145),
+        new THREE.Vector3(155, 1, -175),
+        new THREE.Vector3(165, 1, -125),
+        new THREE.Vector3(-35, 1, 35),
+        new THREE.Vector3(-45, 1, 85),
+        new THREE.Vector3(-135, 1, 55),
+        new THREE.Vector3(-185, 1, 75),
+        new THREE.Vector3(-185, 1, 135),
+
+
+
+        // new THREE.Vector3(100, 1, -60), // x体目以降
+    ],
+
+    // --- 以下は将来のランダムスポーン機能用の設定 ---
+    /*
+    RANDOM_COUNT: 5, // (将来用) ランダム生成する場合の敵の数
+    SPAWN_AREA: {    // (将来用) ランダム生成する場合のエリア範囲
+        MIN_X: -100, MAX_X: 100,
+        MIN_Z: -100, MAX_Z: 100,
+        Y_POSITION: 1, // (将来用) ランダム生成時の基準Y座標、またはレイキャストの基準
+        Y_RAYCAST_OFFSET: 20,
+        Y_TARGET_OFFSET_FROM_GROUND: 0.1,
+    },
+    CONSTRAINTS: {   // (将来用) ランダム生成時の制約条件
+        MIN_DISTANCE_FROM_PLAYER_START: 30,
+        MIN_DISTANCE_BETWEEN_ENEMIES: 8,
+        MAX_ATTEMPTS_PER_ENEMY: 50,
+    },
+    POSSIBLE_SPAWN_POINTS: [ // (将来用) 安全なスポーン地点のリスト
+        // new THREE.Vector3(x1, y1, z1),
+    ]
+    */
+};
+
+// --- Enemy 汎用波紋ATフィールド風エフェクト設定 ---
+// 敵に適用される汎用波紋ATフィールドの設定
+export const ENEMY_GENERIC_AT_FIELD_ENABLED = true; // 敵に波紋ATフィールドを適用するかどうか (true/false)
+export const ENEMY_GENERIC_AT_FIELD_COLOR = 0xffa500; // 敵用エフェクトの色
+
+// エフェクトのサイズと位置を敵モデルに合わせて調整するためのファクター
+export const ENEMY_GENERIC_AT_FIELD_RADIUS_FACTOR = 1.5; // 敵の半径に対するエフェクトの半径の倍率
+export const ENEMY_GENERIC_AT_FIELD_OFFSET_Y_FACTOR = 1.5; // 敵の高さに対するエフェクトのY軸オフセットの倍率 (0.5で中心、1.0で上端付近)
+export const ENEMY_GENERIC_AT_FIELD_OFFSET_HORIZONTAL_FACTOR = 7.0; // 水平方向のオフセット係数ATフィールド半径に対する水平オフセットの倍率 (0.0で中心、1.0で端がモデルに接する)
+
+// 波紋の数、速さ、見た目に関する設定 (ラミエルと似ているが、独立して調整可能)
+export const ENEMY_GENERIC_AT_FIELD_NUM_RINGS = 5;         // 波紋を構成するリングの数
+export const ENEMY_GENERIC_AT_FIELD_RING_DURATION = 0.5;  // 各リングの出現から消滅までの時間 (秒)
+export const ENEMY_GENERIC_AT_FIELD_SPAWN_INTERVAL = 0.1; // 各リングが出現する時間間隔 (秒)
+export const ENEMY_GENERIC_AT_FIELD_START_SCALE = 0.05;   // リングの初期スケール (最終半径に対する割合)
+export const ENEMY_GENERIC_AT_FIELD_END_SCALE_FACTOR = 3.0; // リングの最終スケール (指定半径に対する倍率)
+export const ENEMY_GENERIC_AT_FIELD_RING_THICKNESS_RATIO = 0.12; // リングの外半径に対する太さの割合
+export const ENEMY_GENERIC_AT_FIELD_FADE_OUT_START_RATIO_PER_RING = 0.3; // 各リングの寿命のうち、どの割合からフェードアウトを開始するか
+export const ENEMY_GENERIC_AT_FIELD_INITIAL_OPACITY = 0.7; // 初期不透明度
