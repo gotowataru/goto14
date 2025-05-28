@@ -17,8 +17,8 @@ import {
 
     // constants.js から直接参照するパス
     ENEMY_001_MODEL_PATH,
-    ENEMY_001_ANIMATIONS
-
+    ENEMY_001_ANIMATIONS,
+    ENEMY_001_SCORE, // スコア
 } from './constants.js';
 
 export class EnemyManager {
@@ -85,6 +85,8 @@ export class EnemyManager {
                 RESTITUTION: ENEMY_001_RESTITUTION,
                 HP: ENEMY_001_HP,
                 ATTACK_DAMAGE: ENEMY_001_ATTACK_DAMAGE,
+
+                SCORE: ENEMY_001_SCORE, // ★★★ スコア情報を追加 ★★★
                 LOCAL_FORWARD: ENEMY_001_LOCAL_FORWARD,
                 // 注意: Enemyクラスが必要とする他のパラメータがあればここに追加
             };

@@ -202,6 +202,10 @@ export class RamielManager {
                     coreMesh: coreMesh,
                     body: physicsBody,
                     hp: RAMIEL_INITIAL_HP,
+
+                    isAlive: true, // ★★★ 生存フラグを追加 (applyDamageで更新) ★★★
+                    scoreAwarded: false, // ★★★ スコア加算済みフラグを追加 ★★★
+
                     hpBarSprite: hpBarSprite // HPバーのスプライトを保存
                 });
                 this.raycastTargetsRef.push(ramielMesh);
@@ -245,10 +249,11 @@ export class RamielManager {
 
 
         if (ramielData.hp <= 0) {
-            this.destroyRamielByMesh(ramielMainMesh);
-            return true;
+            ramielData.hp = 0; // HPがマイナスにならないように
+            ramielData.isAlive = false; // ★★★ 死亡状態にする ★★★
+            return true; // 破壊された (HPが0以下になった)
         }
-        return false;
+        return false; // まだ生きている (HPが0より大きい)
     }
 
     destroyRamielByMesh(ramielMainMesh) {

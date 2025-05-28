@@ -29,6 +29,24 @@ export const CHARACTER_LOCAL_FORWARD = new THREE.Vector3(0, 0, 1); // キャラ�
 // export const CHARACTER_JUMP_INITIAL_VELOCITY = 100 * MAZE_SCALE; // ジャンプの初速 (Y方向) (要調整)
 // export const CHARACTER_MAX_JUMPS = 1; // 最大ジャンプ回数 (2段ジャンプなら2)
 
+// --- キャラクターパワーアップ設定 ---
+export const CHARACTER_POWERUP_LEVEL_1_SCORE = 20; // レベル1パワーアップに必要なスコア
+export const CHARACTER_POWERUP_LEVEL_2_SCORE = 50; // (将来用) レベル2パワーアップに必要なスコア
+export const CHARACTER_CLONE_OFFSET_DISTANCE_FACTOR = 9.0; // 分身のオフセット距離（キャラクター半径に対する倍率）
+
+// オプション追従関連の定数
+export const CHARACTER_CLONE_OPACITY = 0.5; // 分身の不透明度
+// export const CHARACTER_CLONE_COLOR = 0x00ffff; // (オプション) 分身の色を変える場合
+export const OPTION_HISTORY_LENGTH = 30; // キャラクターの移動履歴を保持する数 (フレーム数に近いイメージ)
+export const OPTION_DELAY_PER_CLONE = 5;  // 各オプション間の遅延ステップ数 (履歴のインデックス差)
+export const OPTION_FOLLOW_SPEED = 0.15;   // オプションがターゲット位置に追従する速度 (0.0 - 1.0)
+export const OPTION_MIN_DISTANCE_TO_PREVIOUS = CHARACTER_RADIUS * 2.5; // 前のオプション/本体との最小距離
+export const OPTION_SIDE_OFFSET_BASE = CHARACTER_RADIUS * 3.5; // 左右の基本オフセット距離
+export const OPTION_SIDE_OFFSET_INCREMENT = CHARACTER_RADIUS * 1.0; // オプションが増えるごとの追加オフセット
+
+
+
+
 // --- 迷路設定 ---
 export const MAZE_SCALE = 1; // 迷路モデルの全体的なスケール。迷路の大きさを調整します。他の多くの値もこれに依存する場合があります。
 export const MAZE_Y_OFFSET = 0; // 迷路モデルのY軸オフセット。迷路全体の高さを調整します。
@@ -134,15 +152,17 @@ export const WALL_RESTITUTION = 0.5; // 壁の物理的な反発係数。
 // --- 球体 (Sphere) 設定 ---
 export const NUM_SPHERES = 25; // ゲーム内に生成する球体の数。
 export const MIN_SPHERE_RADIUS = 2.5 * MAZE_SCALE; // 生成される球体の最小半径。
-export const MAX_SPHERE_RADIUS = 3 * MAZE_SCALE; // 生成される球体の最大半径。
-export const SPHERE_MASS = 20; // 球体の物理的な質量。
-export const SPHERE_FRICTION = 0.4; // 球体の物理的な摩擦係数。
-export const SPHERE_RESTITUTION = 0.6; // 球体の物理的な反発係数。
-export const SPHERE_INITIAL_Y_OFFSET = 10 * MAZE_SCALE; // 球体の初期配置時のY軸オフセット（床面からの高さ）。埋まらないように調整。
+export const MAX_SPHERE_RADIUS = 4 * MAZE_SCALE; // 生成される球体の最大半径。
+export const SPHERE_MASS = 10; // 球体の物理的な質量。
+export const SPHERE_FRICTION = 0.1; // 球体の物理的な摩擦係数 (0に近いとツルツル、1に近いとザラザラ)。
+export const SPHERE_RESTITUTION = 0.9; // 球体の物理的な反発係数 (0で全く跳ね返らず、1で完全に跳ね返り)
+export const SPHERE_INITIAL_Y_OFFSET = 20 * MAZE_SCALE; // 球体の初期配置時のY軸オフセット（床面からの高さ）。埋まらないように調整。
+export const SPHERE_SCORE = 10; // 球を破壊した際のスコア
+
 
 // --- Ramiel (正八面体) 設定 ---
 export const NUM_RAMIELS = 7; // ゲーム内に生成するラミエルの数。
-export const RAMIEL_INITIAL_HP = 300; // ラミエルの初期HP
+export const RAMIEL_INITIAL_HP = 125; // ラミエルの初期HP
 export const RAMIEL_SIZE = 7 * MAZE_SCALE; // 生成されるラミエルの基本サイズ (OctahedronGeometryの半径に相当)。
 export const RAMIEL_CORE_RADIUS_FACTOR = 0.05; // ラミエルの中心核の半径（RAMIEL_SIZEに対する割合）。
 export const RAMIEL_COLOR = 0x1e90ff; // ラミエルの基本色 (青)。
@@ -154,6 +174,7 @@ export const RAMIEL_MASS = 20000; // ラミエルの物理的な質量。
 export const RAMIEL_FRICTION = 1.0; // ラミエルの物理的な摩擦係数。
 export const RAMIEL_RESTITUTION = 0.0001; // ラミエルの物理的な反発係数。
 export const RAMIEL_INITIAL_Y_OFFSET = 3 * MAZE_SCALE; // ラミエルの初期配置時のY軸オフセット。
+export const RAMIEL_SCORE = 50; // Ramielを破壊した際のスコア
 
 export const RAMIEL_HP_BAR_ENABLED = true; // HPバー表示の有効/無効
 export const RAMIEL_HP_BAR_WIDTH = 4.5 * MAZE_SCALE;   // HPバーのワールド空間での幅
@@ -281,6 +302,7 @@ export const ENEMY_001_HP = 75;// 最大HP
 export const ENEMY_001_ATTACK_DAMAGE = 5;// 攻撃力
 export const ENEMY_001_LOCAL_FORWARD = new THREE.Vector3(0, 0, 1); // モデルの前方方向
 export const ENEMY_001_MOVE_SPEED = 15.0; // 移動時の速度
+export const ENEMY_001_SCORE = 50; // Enemy_001を破壊した際のスコア
 
 // 停止と移動の固定値はやめてみる。
 // export const ENEMY_001_IDLE_DURATION = 3.0; // 停止状態の持続時間 (秒)

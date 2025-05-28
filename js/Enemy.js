@@ -32,9 +32,15 @@ export class Enemy {
 
         this.hp = this.config.HP;
         this.isAlive = true;
+
+        this.scoreAwarded = false; // ★★★ スコア加算済みフラグを追加 ★★★
+
         this.localForwardDirection = this.config.LOCAL_FORWARD.clone(); // モデルのローカル前方ベクトル
 
         this.onAnimationFinishedCallback = null; // アニメーション終了時の外部コールバック
+
+
+
 
         // AI状態関連
         this.aiState = 'idle'; // 初期状態はアイドル

@@ -90,8 +90,18 @@ export class PhysicsManager {
                 }
             }
         }
-        console.log(`PhysicsManager: Added rigid body to world. Total rigid bodies: ${this.rigidBodies.length}. Mass: ${massInfo}.`);
+        // console.log(`PhysicsManager: Added rigid body to world. Total rigid bodies: ${this.rigidBodies.length}. Mass: ${massInfo}.`);
     }
+
+
+    getWorld() {
+        if (this.physicsWorld && this.isInitialized()) {
+            return this.physicsWorld;
+        }
+        // console.warn("PhysicsManager.getWorld(): Physics world is not yet initialized or available.");
+        return null;
+    }
+
 
     createCharacterPhysicsBody(initialPosition, height, radius, mass, physicsProperties = {}) {
         if (!this.AmmoAPI || !this.physicsWorld) {
