@@ -44,9 +44,11 @@ import { // 定数をインポート
     // スコア関連の定数
     SPHERE_SCORE, RAMIEL_SCORE, ENEMY_001_SCORE,
 
-    // ★★★ キャラクターパワーアップスコア定数をインポート ★★★
+    // キャラクターパワーアップスコア定数をインポート
     CHARACTER_POWERUP_LEVEL_1_SCORE,
-    CHARACTER_POWERUP_LEVEL_2_SCORE, // 将来のレベル2用
+    CHARACTER_POWERUP_LEVEL_2_SCORE,
+    CHARACTER_POWERUP_LEVEL_3_SCORE,
+    CHARACTER_POWERUP_LEVEL_4_SCORE,
 
     // 敵汎用ATフィールド関連の定数をインポート
     ENEMY_GENERIC_AT_FIELD_ENABLED, ENEMY_GENERIC_AT_FIELD_COLOR,
@@ -87,6 +89,7 @@ class Game {
 
         // --- UI要素の取得 (スコアと残り数表示用) ---
         this.scoreValueElement = document.getElementById('score-value');
+        this.powerUpLevelValueElement = document.getElementById('powerup-level-value');
         this.spheresRemainingElement = document.getElementById('spheres-remaining');
         this.ramielsRemainingElement = document.getElementById('ramiels-remaining');
         this.enemies001RemainingElement = document.getElementById('enemies-001-remaining');
@@ -102,7 +105,7 @@ class Game {
         this.enemies001Remaining = 0;
         // (他の敵タイプの残り数も将来追加する場合はここに追加)
 
-        // ★★★ キャラクターパワーアップ関連のプロパティ ★★★
+        // キャラクターパワーアップ関連のプロパティ
         this.characterPowerUpLevel = 0; // 初期パワーアップレベル
         this.nextPowerUpScore = CHARACTER_POWERUP_LEVEL_1_SCORE; // 最初のパワーアップ目標スコア
 
@@ -407,10 +410,13 @@ class Game {
         }
     }
 
-    // ★★★ ゲームステータスUIを更新するメソッド ★★★
+    // ゲームステータスUIを更新するメソッド
     updateGameStatusUI() {
         if (this.scoreValueElement) {
             this.scoreValueElement.textContent = this.totalScore.toString();
+        }
+        if (this.powerUpLevelValueElement) {
+            this.powerUpLevelValueElement.textContent = this.characterPowerUpLevel.toString();
         }
         if (this.spheresRemainingElement) {
             this.spheresRemainingElement.textContent = this.spheresRemaining.toString();
@@ -424,7 +430,7 @@ class Game {
         // (他の敵タイプのUI更新も将来追加する場合はここに追加)
     }
 
-    // ★★★ オブジェクト破壊時の処理を一元化するメソッド ★★★
+    // オブジェクト破壊時の処理を一元化するメソッド
     handleObjectDestroyed(objectType, points) {
         this.totalScore += points;
 
@@ -443,27 +449,33 @@ class Game {
         this.updateGameStatusUI();
         // console.log(`Object type '${objectType}' destroyed. Score: ${this.totalScore}`);
 
-        // ★★★ パワーアップ判定 ★★★
+        // パワーアップ判定
         if (this.character && this.character.isAlive) {
             if (this.characterPowerUpLevel === 0 && this.totalScore >= CHARACTER_POWERUP_LEVEL_1_SCORE) {
                 console.log("Game.handleObjectDestroyed: Power up condition met for Level 1! Score:", this.totalScore);
                 this.powerUpCharacter(1);
-                // 次のパワーアップ目標を設定 (レベル2が存在する場合)
-                if (typeof CHARACTER_POWERUP_LEVEL_2_SCORE === 'number') {
-                    this.nextPowerUpScore = CHARACTER_POWERUP_LEVEL_2_SCORE;
-                } else {
-                    this.nextPowerUpScore = Infinity; // これ以上のスコアパワーアップはない
-                }
-            } else if (this.characterPowerUpLevel === 1 && typeof CHARACTER_POWERUP_LEVEL_2_SCORE === 'number' && this.totalScore >= this.nextPowerUpScore) {
+                // 次のパワーアップ目標を設定
+                this.nextPowerUpScore = CHARACTER_POWERUP_LEVEL_2_SCORE;
+            } else if (this.characterPowerUpLevel === 1 && this.totalScore >= this.nextPowerUpScore) { // nextPowerUpScore は CHARACTER_POWERUP_LEVEL_2_SCORE
                 console.log("Game.handleObjectDestroyed: Power up condition met for Level 2! Score:", this.totalScore);
                 this.powerUpCharacter(2);
-                this.nextPowerUpScore = Infinity; // これ以上のスコアパワーアップはない (例)
+                // 次のパワーアップ目標を設定
+                this.nextPowerUpScore = CHARACTER_POWERUP_LEVEL_3_SCORE;
+            } else if (this.characterPowerUpLevel === 2 && this.totalScore >= this.nextPowerUpScore) { // nextPowerUpScore は CHARACTER_POWERUP_LEVEL_3_SCORE
+                console.log("Game.handleObjectDestroyed: Power up condition met for Level 3! Score:", this.totalScore);
+                this.powerUpCharacter(3);
+                // 次のパワーアップ目標を設定
+                this.nextPowerUpScore = CHARACTER_POWERUP_LEVEL_4_SCORE;
+            } else if (this.characterPowerUpLevel === 3 && this.totalScore >= this.nextPowerUpScore) { // nextPowerUpScore は CHARACTER_POWERUP_LEVEL_4_SCORE
+                console.log("Game.handleObjectDestroyed: Power up condition met for Level 4! Score:", this.totalScore);
+                this.powerUpCharacter(4);
+                this.nextPowerUpScore = Infinity; // これ以上のスコアパワーアップはない
             }
             // さらに多くのパワーアップレベルを追加する場合はここに追加
         }
-    }
+     }
 
-    // ★★★ キャラクターをパワーアップさせるメソッド ★★★
+    // キャラクターをパワーアップさせるメソッド
     powerUpCharacter(level) {
         if (!this.character) {
             console.warn("Game.powerUpCharacter: Character instance not found.");
@@ -478,7 +490,7 @@ class Game {
         this.characterPowerUpLevel = level; // Gameクラス側でも現在のパワーアップレベルを更新
         console.log(`Game: Character powering up to Level ${this.characterPowerUpLevel}!`);
 
-        console.log(`Game.powerUpCharacter: Attempting to power up to Level ${level}. Current char level: ${this.character.currentPowerLevel}`); // ★追加
+        console.log(`Game.powerUpCharacter: Attempting to power up to Level ${level}. Current char level: ${this.character.currentPowerLevel}`); // 追加
 
 
         // CharacterクラスのapplyPowerUpメソッドを呼び出して、具体的なパワーアップ処理を委譲
@@ -491,11 +503,6 @@ class Game {
             // console.log("Game: Power up effect should play here.");
         }
     }
-
-
-
-
-
 
     animate() {
         requestAnimationFrame(this.animate.bind(this));
@@ -533,23 +540,29 @@ class Game {
             this.enemyManager.update(delta);
         }
 
+        // ▼▼▼ ビーム発射ロジックの変更 ▼▼▼
         if (this.character && this.character.currentActionName === 'kick' &&
-            this.character.kickActionStartTime !== null && !this.character.beamGeneratedDuringKick) {
+            this.character.kickActionStartTime !== null) { // beamGeneratedDuringKick のチェックは Character 側に移譲
+
             const elapsedSinceKickStart = (performance.now() - this.character.kickActionStartTime) / 1000;
+
             if (elapsedSinceKickStart >= KICK_BEAM_DELAY) {
-                const worldForward = this.character.localForwardDirection.clone().applyQuaternion(this.character.model.quaternion);
-                this.projectileManager.createRings(this.character.model, worldForward);
-                this.projectileManager.createBeam(
-                    this.character.model, worldForward, CHARACTER_HEIGHT,
-                    BEAM_SPAWN_OFFSET_FORWARD, MAKANKO_BEAM_TYPE_ENABLED,
-                );
-                this.character.beamGeneratedDuringKick = true;
-                if (this.sfxBeamLoaded && this.sfxBeamSound) {
-                    if (this.sfxBeamSound.isPlaying) this.sfxBeamSound.stop();
-                    this.sfxBeamSound.play();
+                // 本体ビームの発射
+                if (!this.character.beamGeneratedDuringKick) { // 本体がまだ発射していなければ
+                    this.character.fireMainBeam();
+                    // 効果音は本体が発射したタイミングで一度だけ鳴らす（現状維持）
+                    if (this.sfxBeamLoaded && this.sfxBeamSound) {
+                        if (this.sfxBeamSound.isPlaying) this.sfxBeamSound.stop();
+                        this.sfxBeamSound.play();
+                    }
                 }
+
+                // 分身ビームの発射 (KICK_BEAM_DELAY を共有)
+                // Characterクラス側で各分身がまだ発射していないかチェックする
+                this.character.fireCloneBeams();
             }
         }
+        // ▲▲▲ ビーム発射ロジックの変更 ▲▲▲
 
         if (this.character && this.cameraManager) {
             this.cameraManager.updateCamera(this.character.model, this.character.isMoving, this.inputManager);
@@ -609,14 +622,14 @@ class Game {
                         this.effectManager.createRamielCrossExplosion(gPos);
                     }
 
-                   // ★★★ ラミエルを実際に破壊する処理を呼び出す ★★★
+                   // ラミエルを実際に破壊する処理を呼び出す
                    this.ramielManager.destroyRamielByMesh(hitObject);
 
                 } else if (ramielData && !ramielData.isAlive && !ramielData.scoreAwarded) {
                      this.handleObjectDestroyed('ramiel', RAMIEL_SCORE); // 既に死んでてスコア未処理の場合
                      ramielData.scoreAwarded = true;
 
-                   this.ramielManager.destroyRamielByMesh(hitObject); // ★★★
+                   this.ramielManager.destroyRamielByMesh(hitObject);
 
 
                 }

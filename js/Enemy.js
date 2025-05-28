@@ -33,7 +33,7 @@ export class Enemy {
         this.hp = this.config.HP;
         this.isAlive = true;
 
-        this.scoreAwarded = false; // ★★★ スコア加算済みフラグを追加 ★★★
+        this.scoreAwarded = false;
 
         this.localForwardDirection = this.config.LOCAL_FORWARD.clone(); // モデルのローカル前方ベクトル
 

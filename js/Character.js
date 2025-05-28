@@ -18,14 +18,17 @@ import {
     OPTION_FOLLOW_SPEED,
     OPTION_MIN_DISTANCE_TO_PREVIOUS,
     OPTION_SIDE_OFFSET_BASE,
-    OPTION_SIDE_OFFSET_INCREMENT
+    OPTION_SIDE_OFFSET_INCREMENT,
+    KICK_BEAM_DELAY,
+    BEAM_SPAWN_OFFSET_FORWARD,
+    MAKANKO_BEAM_TYPE_ENABLED,
 } from './constants.js';
 
 export class Character {
     constructor(model, animations, scene, physicsManager, initialPosition, initialScale, localForwardVec, projectileManager) {
 
-        this.originalModelSource = model; // ★★★ ロード直後の「綺麗な」モデルソースを保持 ★★★
-        this.model = SkeletonUtils.clone(this.originalModelSource); // ★★★ 本体モデルもソースからクローンして使用 ★★★
+        this.originalModelSource = model;
+        this.model = SkeletonUtils.clone(this.originalModelSource);
 
         this.scene = scene;
         this.physicsManager = physicsManager; // PhysicsManagerのインスタンスを保持
@@ -61,11 +64,11 @@ export class Character {
         this.cloneMaterialProperties = null; // 分身用の半透明マテリアルのプロパティ
         this.maxClones = 0; // 現在のパワーアップレベルで許可される分身の最大数
 
-        // ★★★ オプション追従用の履歴 ★★★
+        // オプション追従用の履歴
         this.positionHistory = []; // { position: Vector3, quaternion: Quaternion, timestamp: number } の配列
         this.historyCounter = 0;   // リングバッファのように履歴を管理するためのカウンター
 
-        // ★★★ アニメーションクリップを複製して本体用にセットアップ ★★★
+        // アニメーションクリップを複製して本体用にセットアップ
         const originalAnimationClips = animations; // AssetLoaderから渡されたアニメーションクリップ集
         for (const name in originalAnimationClips) {
             if (originalAnimationClips[name] instanceof THREE.AnimationClip) {
@@ -165,11 +168,24 @@ export class Character {
             this.canPlayAction = false;
             this.kickActionStartTime = performance.now();
             this.beamGeneratedDuringKick = false;
+
+            // 分身にもキック開始情報を伝播 (userData を使用)
+            this.clones.forEach(clone => {
+                if (!clone.userData) clone.userData = {}; // userDataがなければ初期化
+                clone.userData.kickActionStartTime = this.kickActionStartTime;
+                clone.userData.beamGeneratedDuringKick = false;
+            });
         } else {
             this.kickActionStartTime = null;
+            // 分身のキック関連情報もリセット (必要に応じて)
+            this.clones.forEach(clone => {
+                if (clone.userData) {
+                    clone.userData.kickActionStartTime = null;
+                }
+            });
         }
 
-        // ★★★ 分身のアニメーションも同期 ★★★
+        // 分身のアニメーションも同期
         this.clones.forEach(clone => {
             if (clone.userData.mixer && clone.userData.actions) {
                 const clonePrevAction = clone.userData.actions[clone.userData.currentActionName]; // 分身の「前の」アクション名
@@ -196,7 +212,7 @@ export class Character {
             disableMovementInput = true;
 　　　　}
 
-        // ★★★ 移動履歴を記録 ★★★
+        // 移動履歴を記録
         this.recordHistory();
 
         const moveF = inputManager.isPhysicalKeyPressed('KeyW') || inputManager.isPhysicalKeyPressed('ArrowUp');
@@ -264,14 +280,14 @@ export class Character {
 
          this.mixer.update(delta); // 本体ミキサーの更新
 
-         // ★★★ 分身のアニメーションミキサーを更新 ★★★
+         // 分身のアニメーションミキサーを更新
          this.clones.forEach(clone => {
              if (clone.userData.mixer) {
                  clone.userData.mixer.update(delta);
              }
          });
 
-         // ★★★ 分身の位置を更新 (オプション風追従) ★★★
+         // 分身の位置を更新 (オプション風追従)
          this.updateClonePositionsOptionStyle(delta);
      }
 
@@ -289,25 +305,73 @@ export class Character {
 
     startKickAction() {
         if (this.canPlayAction) {
-            this.switchAnimation('kick');
+            this.switchAnimation('kick'); // これにより分身の kickActionStartTime などもセットされる
             return true;
         }
         return false;
     }
 
+    // 本体キャラクターがビームを発射する処理
+    fireMainBeam() {
+        if (this.beamGeneratedDuringKick) return; // 既にこのキックで発射済みなら何もしない
+
+        // console.log("Character.fireMainBeam: Firing main beam.");
+        const worldForward = this.localForwardDirection.clone().applyQuaternion(this.model.quaternion);
+        this.projectileManager.createRings(this.model, worldForward);
+        this.projectileManager.createBeam(
+            this.model, worldForward, CHARACTER_HEIGHT,
+            BEAM_SPAWN_OFFSET_FORWARD, MAKANKO_BEAM_TYPE_ENABLED,
+        );
+        this.beamGeneratedDuringKick = true;
+    }
+
+    // 分身がビームを発射する処理
+    fireCloneBeams() {
+        this.clones.forEach(clone => {
+            if (!clone.userData) return; // userData がなければ何もしない
+            // 分身がキックアクション中で、まだこのキックでビームを発射していない場合
+            if (clone.userData.kickActionStartTime && !clone.userData.beamGeneratedDuringKick) {
+                // console.log(`Character.fireCloneBeams: Firing beam for clone:`, clone.uuid);
+                // 分身の位置と向きを取得
+                const cloneWorldForward = this.localForwardDirection.clone().applyQuaternion(clone.quaternion); // 分身の向き
+
+                // リングは分身からは出さない（オプション）か、出すなら別途調整
+                // this.projectileManager.createRings(clone, cloneWorldForward);
+
+                // ビームを発射 (本体と同じ設定を使用)
+                this.projectileManager.createBeam(
+                    clone, cloneWorldForward, CHARACTER_HEIGHT, // 分身のモデルと向き、高さを使用
+                    BEAM_SPAWN_OFFSET_FORWARD, MAKANKO_BEAM_TYPE_ENABLED,
+                );
+                clone.userData.beamGeneratedDuringKick = true;
+            }
+        });
+    }
+
+
     applyPowerUp(level) {
         this.currentPowerLevel = level;
-        // console.log(`Character.applyPowerUp: Level ${level}`);
+        console.log(`Character.applyPowerUp: Applying power up to Level ${level}`); // ログを少し変更
+
         if (level === 1) {
-            this.maxClones = 1; // パワーアップ1で分身1体
-            this.speed = this.baseSpeed * 1.05; // 例: 少しスピードアップ
-            // console.log("Character PowerUp Level 1: Max clones set to 1.");
+            this.maxClones = 1;
+            // this.speed = this.baseSpeed * 1.05; // 速度変更は今回は保留
+            console.log("Character PowerUp Level 1: Max clones set to 1.");
         } else if (level === 2) {
-            this.maxClones = 2; // パワーアップ2で分身2体 (合計)
-            this.speed = this.baseSpeed * 1.1;
-            // console.log("Character PowerUp Level 2: Max clones set to 2.");
+            this.maxClones = 2;
+            // this.speed = this.baseSpeed * 1.1; // 速度変更は今回は保留
+            console.log("Character PowerUp Level 2: Max clones set to 2.");
+        } else if (level === 3) { // 追加: レベル3の処理
+            this.maxClones = 3;
+            // this.speed = this.baseSpeed * 1.15; // (将来用) 速度変更は今回は保留
+            console.log("Character PowerUp Level 3: Max clones set to 3.");
+        } else if (level === 4) { // 追加: レベル4の処理
+            this.maxClones = 4;
+            // this.speed = this.baseSpeed * 1.2; // (将来用) 速度変更は今回は保留
+            console.log("Character PowerUp Level 4: Max clones set to 4.");
         }
-        // else if (level === 3) { ... } // 将来のパワーアップ
+        // 他のレベルのパワーアップが必要な場合は、ここに追加
+        
         this.updateClones(); // 分身の数と表示を更新
     }
 
@@ -391,6 +455,9 @@ export class Character {
 
         cloneModel.userData.mixer = new THREE.AnimationMixer(cloneModel);
         cloneModel.userData.actions = {};
+        if (!cloneModel.userData) cloneModel.userData = {}; // userData がなければ初期化 (念のため)
+        cloneModel.userData.kickActionStartTime = null; // 分身用のビーム発射関連プロパティを初期化
+        cloneModel.userData.beamGeneratedDuringKick = false;
         const sourceAnimations = this.animations; // 本体用に複製されたアニメーションクリップを使用
 
         for (const animName in sourceAnimations) {
@@ -440,7 +507,7 @@ export class Character {
     }
     */
 
-    // ★★★ 移動履歴を記録するメソッド ★★★
+    // 移動履歴を記録するメソッド
     recordHistory() {
         if (!this.model) return;
 
@@ -482,7 +549,7 @@ export class Character {
         }
     }
 
-    // ★★★ グラディウスオプション風に分身の位置を更新するメソッド ★★★
+    // グラディウスオプション風に分身の位置を更新するメソッド
     updateClonePositionsOptionStyle(delta) {
         if (this.clones.length === 0 || this.positionHistory.length === 0) {
             return;

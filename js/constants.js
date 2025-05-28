@@ -31,21 +31,21 @@ export const CHARACTER_LOCAL_FORWARD = new THREE.Vector3(0, 0, 1); // キャラ�
 
 // --- キャラクターパワーアップ設定 ---
 export const CHARACTER_POWERUP_LEVEL_1_SCORE = 20; // レベル1パワーアップに必要なスコア
-export const CHARACTER_POWERUP_LEVEL_2_SCORE = 50; // (将来用) レベル2パワーアップに必要なスコア
+export const CHARACTER_POWERUP_LEVEL_2_SCORE = 50; // レベル2パワーアップに必要なスコア
+export const CHARACTER_POWERUP_LEVEL_3_SCORE = 110; // レベル3パワーアップに必要なスコア
+export const CHARACTER_POWERUP_LEVEL_4_SCORE = 170; // レベル4パワーアップに必要なスコア
+
 export const CHARACTER_CLONE_OFFSET_DISTANCE_FACTOR = 9.0; // 分身のオフセット距離（キャラクター半径に対する倍率）
 
 // オプション追従関連の定数
-export const CHARACTER_CLONE_OPACITY = 0.5; // 分身の不透明度
+export const CHARACTER_CLONE_OPACITY = 0.6; // 分身の不透明度
 // export const CHARACTER_CLONE_COLOR = 0x00ffff; // (オプション) 分身の色を変える場合
 export const OPTION_HISTORY_LENGTH = 30; // キャラクターの移動履歴を保持する数 (フレーム数に近いイメージ)
 export const OPTION_DELAY_PER_CLONE = 5;  // 各オプション間の遅延ステップ数 (履歴のインデックス差)
 export const OPTION_FOLLOW_SPEED = 0.15;   // オプションがターゲット位置に追従する速度 (0.0 - 1.0)
 export const OPTION_MIN_DISTANCE_TO_PREVIOUS = CHARACTER_RADIUS * 2.5; // 前のオプション/本体との最小距離
 export const OPTION_SIDE_OFFSET_BASE = CHARACTER_RADIUS * 3.5; // 左右の基本オフセット距離
-export const OPTION_SIDE_OFFSET_INCREMENT = CHARACTER_RADIUS * 1.0; // オプションが増えるごとの追加オフセット
-
-
-
+export const OPTION_SIDE_OFFSET_INCREMENT = CHARACTER_RADIUS * 3.5; // オプションが増えるごとの追加オフセット
 
 // --- 迷路設定 ---
 export const MAZE_SCALE = 1; // 迷路モデルの全体的なスケール。迷路の大きさを調整します。他の多くの値もこれに依存する場合があります。
@@ -156,7 +156,7 @@ export const MAX_SPHERE_RADIUS = 4 * MAZE_SCALE; // 生成される球体の最�
 export const SPHERE_MASS = 10; // 球体の物理的な質量。
 export const SPHERE_FRICTION = 0.1; // 球体の物理的な摩擦係数 (0に近いとツルツル、1に近いとザラザラ)。
 export const SPHERE_RESTITUTION = 0.9; // 球体の物理的な反発係数 (0で全く跳ね返らず、1で完全に跳ね返り)
-export const SPHERE_INITIAL_Y_OFFSET = 20 * MAZE_SCALE; // 球体の初期配置時のY軸オフセット（床面からの高さ）。埋まらないように調整。
+export const SPHERE_INITIAL_Y_OFFSET = 3 * MAZE_SCALE; // 球体の初期配置時のY軸オフセット（床面からの高さ）。埋まらないように調整。
 export const SPHERE_SCORE = 10; // 球を破壊した際のスコア
 
 
@@ -173,7 +173,7 @@ export const RAMIEL_ROUGHNESS = 0.1; // ラミエルの表面の粗さ (0.0 - 1.
 export const RAMIEL_MASS = 20000; // ラミエルの物理的な質量。
 export const RAMIEL_FRICTION = 1.0; // ラミエルの物理的な摩擦係数。
 export const RAMIEL_RESTITUTION = 0.0001; // ラミエルの物理的な反発係数。
-export const RAMIEL_INITIAL_Y_OFFSET = 3 * MAZE_SCALE; // ラミエルの初期配置時のY軸オフセット。
+export const RAMIEL_INITIAL_Y_OFFSET = 7 * MAZE_SCALE; // ラミエルの初期配置時のY軸オフセット。
 export const RAMIEL_SCORE = 50; // Ramielを破壊した際のスコア
 
 export const RAMIEL_HP_BAR_ENABLED = true; // HPバー表示の有効/無効
@@ -324,8 +324,6 @@ export const ENEMY_001_TURN_SPEED = Math.PI;  // 旋回速度 (ラジアン/秒)
 
 export const ENEMY_001_MAX_CONSECUTIVE_STRAIGHTS = 2; // 同じ方向に連続で直進できる最大回数
 
-
-
 // --- Enemy_001 スポーン設定 (フェーズ1: 固定座標指定) ---
 export const ENEMY_001_SPAWN_SETTINGS = {
     /**
@@ -371,9 +369,6 @@ export const ENEMY_001_SPAWN_SETTINGS = {
         new THREE.Vector3(-135, 1, 55),
         new THREE.Vector3(-185, 1, 75),
         new THREE.Vector3(-185, 1, 135),
-
-
-
         // new THREE.Vector3(100, 1, -60), // x体目以降
     ],
 
