@@ -4,136 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Maze and Character Viewer with Minimap (Ammo.js Physics)</title>
-    <style>
-        /* ... (既存のスタイルはそのまま) ... */
-
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #333;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        canvas {
-            display: block;
-        }
-
-        /* 左上UIパネル全体のスタイル */
-        #ui-panel-left {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        /* 操作方法表示用のスタイル */
-        #controls-info {
-            padding: 12px 18px;
-            background-color: rgba(0, 0, 0, 0.65);
-            color: #f0f0f0;
-            border-radius: 8px;
-            font-size: 14px;
-            line-height: 1.7;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        }
-        #controls-info p {
-            margin: 5px 0;
-        }
-        #controls-info strong {
-            color: #ffffff;
-            font-weight: 600;
-            display: block;
-            margin-bottom: 8px;
-        }
-
-        /* ボリュームコントロール用のスタイル (BGMとSFX共通の親コンテナも考慮) */
-        .volume-control-group { /* BGMとSFXの各コントロールをグループ化 */
-            padding: 10px 18px;
-            background-color: rgba(0, 0, 0, 0.65);
-            color: #f0f0f0;
-            border-radius: 8px;
-            font-size: 14px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        }
-        .volume-control-group label {
-            margin-right: 8px;
-            vertical-align: middle;
-            display: inline-block; /* 幅を確保 */
-            width: 70px; /* ラベルの幅を揃える (調整してください) */
-        }
-        .volume-control-group input[type="range"] {
-            width: 100px; /* スライダーの幅を少し調整 */
-            vertical-align: middle;
-            cursor: pointer;
-        }
-        .volume-control-group span {
-            margin-left: 8px;
-            vertical-align: middle;
-            min-width: 35px;
-            display: inline-block;
-            text-align: right;
-        }
-
-
-        /* ロード中メッセージ */
-        #loading-message {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -70%);
-            color: white;
-            font-size: 20px;
-            padding: 20px;
-            background-color: rgba(0,0,0,0.7);
-            border-radius: 10px;
-            z-index: 1001;
-        }
-
-        /* ゲーム開始メッセージ用のスタイル */
-        #start-game-message {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            padding: 20px 40px;
-            background-color: rgba(0, 0, 0, 0.75);
-            color: white;
-            font-size: 24px;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            text-align: center;
-            border-radius: 10px;
-            z-index: 1000;
-            cursor: default;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
-        #start-game-message p {
-            margin: 10px 0;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div id="ui-panel-left">
+    <div id="ui-container-top-left"> <!-- UI要素の親コンテナ -->
         <div id="controls-info">
             <p><strong>操作方法</strong></p>
             <p>W/A/S/D または ↑/←/↓/→ : 移動</p>
             <p>スペースキー : キック</p>
         </div>
 
-        <!-- BGMボリュームコントロール -->
-        <div id="bgm-volume-control" class="volume-control-group">
-            <label for="bgm-volume-slider">BGM音量:</label>
-            <input type="range" id="bgm-volume-slider" min="0" max="1" step="0.01">
-            <span id="bgm-volume-value"></span>
+        <div id="volume-controls-wrapper"> <!-- ボリュームコントロールをまとめるラッパー -->
+            <div id="bgm-volume-control" class="volume-control-group">
+                <label for="bgm-volume-slider">BGM音量</label>
+                <input type="range" id="bgm-volume-slider" min="0" max="1" step="0.01">
+                <span id="bgm-volume-value"></span>
+            </div>
+
+            <div id="sfx-volume-control" class="volume-control-group">
+                <label for="sfx-volume-slider">効果音量</label>
+                <input type="range" id="sfx-volume-slider" min="0" max="1" step="0.01">
+                <span id="sfx-volume-value"></span>
+            </div>
         </div>
 
-        <!-- ★★★ SFXボリュームコントロール用の要素を追加 ★★★ -->
-        <div id="sfx-volume-control" class="volume-control-group">
-            <label for="sfx-volume-slider">効果音量:</label>
-            <input type="range" id="sfx-volume-slider" min="0" max="1" step="0.01">
-            <span id="sfx-volume-value"></span>
+        <div id="game-status-panel">
+            <p><strong>初音ミクの状況</strong></p>
+            <div class="status-item">
+                <span>スコア</span>
+                <span id="score-value">0</span>
+            </div>
+            <p style="margin-top:10px; margin-bottom:5px; font-weight:500;">残りの敵</p>
+            <div class="status-item">
+                <span>球体　　　：</span>
+                <span id="spheres-remaining">0</span>
+            </div>
+            <div class="status-item">
+                <span>ラミエル　：</span>
+                <span id="ramiels-remaining">0</span>
+            </div>
+            <div class="status-item">
+                <span>量産型EVA ：</span>
+                <span id="enemies-001-remaining">0</span>
+            </div>
+            <!-- 他の敵タイプが増えたらここに追加 -->
         </div>
     </div>
 
