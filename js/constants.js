@@ -156,7 +156,7 @@ export const MAX_SPHERE_RADIUS = 4 * MAZE_SCALE; // 生成される球体の最�
 export const SPHERE_MASS = 10; // 球体の物理的な質量。
 export const SPHERE_FRICTION = 0.1; // 球体の物理的な摩擦係数 (0に近いとツルツル、1に近いとザラザラ)。
 export const SPHERE_RESTITUTION = 0.9; // 球体の物理的な反発係数 (0で全く跳ね返らず、1で完全に跳ね返り)
-export const SPHERE_INITIAL_Y_OFFSET = 2 * MAZE_SCALE; // 球体の初期配置時のY軸オフセット（床面からの高さ）。埋まらないように調整。
+export const SPHERE_INITIAL_Y_OFFSET = 0 * MAZE_SCALE; // 球体の初期配置時のY軸オフセット（床面からの高さ）。埋まらないように調整。
 export const SPHERE_SCORE = 10; // 球を破壊した際のスコア
 
 
@@ -173,7 +173,7 @@ export const RAMIEL_ROUGHNESS = 0.1; // ラミエルの表面の粗さ (0.0 - 1.
 export const RAMIEL_MASS = 20000; // ラミエルの物理的な質量。
 export const RAMIEL_FRICTION = 0.1; // ラミエルの物理的な摩擦係数。
 export const RAMIEL_RESTITUTION = 0.9; // ラミエルの物理的な反発係数。
-export const RAMIEL_INITIAL_Y_OFFSET = 5 * MAZE_SCALE; // ラミエルの初期配置時のY軸オフセット。
+export const RAMIEL_INITIAL_Y_OFFSET = 7 * MAZE_SCALE; // ラミエルの初期配置時のY軸オフセット。
 export const RAMIEL_SCORE = 50; // Ramielを破壊した際のスコア
 
 export const RAMIEL_HP_BAR_ENABLED = true; // HPバー表示の有効/無効
