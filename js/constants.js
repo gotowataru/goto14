@@ -161,7 +161,7 @@ export const SPHERE_SCORE = 10; // 球を破壊した際のスコア
 
 
 // --- Ramiel (正八面体) 設定 ---
-export const NUM_RAMIELS = 7; // ゲーム内に生成するラミエルの数。
+export const NUM_RAMIELS = 10; // ゲーム内に生成するラミエルの数。
 export const RAMIEL_INITIAL_HP = 125; // ラミエルの初期HP
 export const RAMIEL_SIZE = 7 * MAZE_SCALE; // 生成されるラミエルの基本サイズ (OctahedronGeometryの半径に相当)。
 export const RAMIEL_CORE_RADIUS_FACTOR = 0.05; // ラミエルの中心核の半径（RAMIEL_SIZEに対する割合）。
@@ -171,9 +171,9 @@ export const RAMIEL_OPACITY = 0.95; // ラミエルの透明度 (0.0 - 1.0)。
 export const RAMIEL_METALNESS = 0.3; // ラミエルの金属っぽさ (0.0 - 1.0)。
 export const RAMIEL_ROUGHNESS = 0.1; // ラミエルの表面の粗さ (0.0 - 1.0)。
 export const RAMIEL_MASS = 20000; // ラミエルの物理的な質量。
-export const RAMIEL_FRICTION = 1.0; // ラミエルの物理的な摩擦係数。
-export const RAMIEL_RESTITUTION = 0.0001; // ラミエルの物理的な反発係数。
-export const RAMIEL_INITIAL_Y_OFFSET = 7 * MAZE_SCALE; // ラミエルの初期配置時のY軸オフセット。
+export const RAMIEL_FRICTION = 0.1; // ラミエルの物理的な摩擦係数。
+export const RAMIEL_RESTITUTION = 0.9; // ラミエルの物理的な反発係数。
+export const RAMIEL_INITIAL_Y_OFFSET = 3 * MAZE_SCALE; // ラミエルの初期配置時のY軸オフセット。
 export const RAMIEL_SCORE = 50; // Ramielを破壊した際のスコア
 
 export const RAMIEL_HP_BAR_ENABLED = true; // HPバー表示の有効/無効
@@ -280,9 +280,9 @@ export const SFX_BEAM_LOOP = false; // 効果音は通常ループしない
 
 // --- Enemy: Enemy_001 設定 ---
 // export const ENEMY_001_NUM_INSTANCES = 1; // テスト用1体の初期配置数
-export const ENEMY_001_MODEL_PATH = './models/test_Enemy_idol_20250527_01アニメ無し.fbx';
+export const ENEMY_001_MODEL_PATH = './models/test_Enemy_tpose_20250529_01.fbx';
 export const ENEMY_001_ANIMATIONS = {
-    idle: './models/test_Enemy_idol_20250526_02骨のみ.fbx', // アイドルアニメーションはモデルファイル自体に含まれる
+    idle: './models/test_Enemy_idol_20250529_01.fbx',
     run: './models/test_Enemy_run_20250526_03.fbx',
     attack: './models/test_Enemy_attack_20250526_02.fbx'
 };
@@ -291,8 +291,8 @@ export const ENEMY_001_ANIMATIONS = {
 //];
 
 export const ENEMY_001_SCALE = 1.0; // モデルの倍率
-export const ENEMY_001_BASE_HEIGHT = 2.0; // モデルの基準身長
-export const ENEMY_001_BASE_RADIUS = 0.5; // モデルの基準半径
+export const ENEMY_001_BASE_HEIGHT = 6.0; // モデルの基準身長
+export const ENEMY_001_BASE_RADIUS = 1.5; // モデルの基準半径
 export const ENEMY_001_HEIGHT = ENEMY_001_BASE_HEIGHT * ENEMY_001_SCALE;
 export const ENEMY_001_RADIUS = ENEMY_001_BASE_RADIUS * ENEMY_001_SCALE;
 export const ENEMY_001_MASS = 5000; // モデルの質量
@@ -323,6 +323,8 @@ export const ENEMY_001_TURN_SPEED = Math.PI;  // 旋回速度 (ラジアン/秒)
 // ENEMY_001_TURN_SPEED = Math.PI / 4; (45度/秒) なら、約2秒で旋回完了。
 
 export const ENEMY_001_MAX_CONSECUTIVE_STRAIGHTS = 2; // 同じ方向に連続で直進できる最大回数
+export const ENEMY_001_USE_GENERIC_AT_FIELD = true; // ATフィールドを使用
+
 
 // --- Enemy_001 スポーン設定 (フェーズ1: 固定座標指定) ---
 export const ENEMY_001_SPAWN_SETTINGS = {
@@ -340,7 +342,7 @@ export const ENEMY_001_SPAWN_SETTINGS = {
      * もしこの値が INITIAL_POSITIONS.length より大きい場合、
      * EnemyManager は INITIAL_POSITIONS.length に合わせて調整します。
      */
-    NUM_INSTANCES: 20, // 3体生成する場合は3
+    NUM_INSTANCES: 15, // 3体生成する場合は3
 
     /**
      * METHOD が 'FIXED' の場合に参照する、敵の初期位置の座標リスト。
@@ -358,19 +360,70 @@ export const ENEMY_001_SPAWN_SETTINGS = {
         new THREE.Vector3(-130, 1, 50),
         new THREE.Vector3(-180, 1, 70),
         new THREE.Vector3(-180, 1, 130),
-
         new THREE.Vector3(25, 1, -25),
         new THREE.Vector3(85, 1, -75),
         new THREE.Vector3(125, 1, -145),
         new THREE.Vector3(155, 1, -175),
         new THREE.Vector3(165, 1, -125),
+
+        // new THREE.Vector3(100, 1, -60), // x体目以降
+    ],
+};
+
+export const ENEMY_002_MODEL_PATH = './models/test_Enemy02_tpose_20250529_3.fbx';
+export const ENEMY_002_ANIMATIONS = {
+    idle: './models/test_Enemy02_idol_20250529_2.fbx',
+    run: './models/test_Enemy02_run_20250529_3.fbx',
+    attack: './models/test_Enemy02_attack_20250529_2.fbx'
+};
+
+export const ENEMY_002_SCALE = 1.0; // モデルの倍率 (enemy_001 と同じ場合)
+export const ENEMY_002_BASE_HEIGHT = 6.0; // モデルの基準身長
+export const ENEMY_002_BASE_RADIUS = 1.5; // モデルの基準半径
+export const ENEMY_002_HEIGHT = ENEMY_002_BASE_HEIGHT * ENEMY_002_SCALE;
+export const ENEMY_002_RADIUS = ENEMY_002_BASE_RADIUS * ENEMY_002_SCALE;
+export const ENEMY_002_MASS = 5000; // モデルの質量
+export const ENEMY_002_FRICTION = 0.9;
+export const ENEMY_002_RESTITUTION = 0.1;
+export const ENEMY_002_HP = 75; // 最大HP
+export const ENEMY_002_ATTACK_DAMAGE = 5; // 攻撃力
+export const ENEMY_002_LOCAL_FORWARD = new THREE.Vector3(0, 0, 1); // モデルの前方方向
+export const ENEMY_002_SCORE = 30; // Enemy_002を破壊した際のスコア (例: enemy_001 と変える場合)
+
+// AI パラメータ (Enemy.js が config から参照する汎用名に対応)
+export const ENEMY_002_MOVE_SPEED = 3.0;
+export const ENEMY_002_IDLE_DURATION_MIN = 1.0;
+export const ENEMY_002_IDLE_DURATION_MAX = 4.0;
+export const ENEMY_002_RUN_DURATION_MIN = 3.0;
+export const ENEMY_002_RUN_DURATION_MAX = 7.0;
+export const ENEMY_002_TURN_CHANCE = 0.5;
+export const ENEMY_002_TURN_SPEED = Math.PI;
+export const ENEMY_002_MAX_CONSECUTIVE_STRAIGHTS = 2;
+export const ENEMY_002_USE_GENERIC_AT_FIELD = false; // ENEMY_002 はATフィールドを使用しない
+
+// --- Enemy_002 スポーン設定 ---
+export const ENEMY_002_SPAWN_SETTINGS = {
+    METHOD: 'FIXED',
+    NUM_INSTANCES: 15, // 15体生成
+    INITIAL_POSITIONS: [
+        new THREE.Vector3(30, 1, -30),   // 1体目の初期位置 (enemy_001 とは別の場所)
+        new THREE.Vector3(90, 1, -80),
+        new THREE.Vector3(130, 1, -150),
+        new THREE.Vector3(-40, 1, 40),
+        new THREE.Vector3(-140, 1, 60),
         new THREE.Vector3(-35, 1, 35),
         new THREE.Vector3(-45, 1, 85),
         new THREE.Vector3(-135, 1, 55),
         new THREE.Vector3(-185, 1, 75),
         new THREE.Vector3(-185, 1, 135),
-        // new THREE.Vector3(100, 1, -60), // x体目以降
+        new THREE.Vector3(-10, 1, 30),
+        new THREE.Vector3(-35, 1, 80),
+        new THREE.Vector3(-95, 1, 50),
+        new THREE.Vector3(-160, 1, 70),
+        new THREE.Vector3(-145, 1, 130),
+
     ],
+};
 
     // --- 以下は将来のランダムスポーン機能用の設定 ---
     /*
@@ -391,7 +444,6 @@ export const ENEMY_001_SPAWN_SETTINGS = {
         // new THREE.Vector3(x1, y1, z1),
     ]
     */
-};
 
 // --- Enemy 汎用波紋ATフィールド風エフェクト設定 ---
 // 敵に適用される汎用波紋ATフィールドの設定

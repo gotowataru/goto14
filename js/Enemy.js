@@ -1,19 +1,7 @@
 // Enemy.js
 import * as THREE from 'three';
 
-import {
-    ENEMY_001_MOVE_SPEED,
-    // ENEMY_001_IDLE_DURATION, // 古い定数
-    // ENEMY_001_RUN_DURATION,  // 古い定数
-    ENEMY_001_IDLE_DURATION_MIN,
-    ENEMY_001_IDLE_DURATION_MAX,
-    ENEMY_001_RUN_DURATION_MIN,
-    ENEMY_001_RUN_DURATION_MAX,
-    ENEMY_001_TURN_CHANCE,
-    ENEMY_001_TURN_SPEED,
-    ENEMY_001_MAX_CONSECUTIVE_STRAIGHTS
-} from './constants.js';
-
+// ENEMY_ 関連の定数インポートは不要
 
 export class Enemy {
     constructor(config, scene, physicsManager, effectManager, playerRefGetter) {
@@ -39,15 +27,21 @@ export class Enemy {
 
         this.onAnimationFinishedCallback = null; // アニメーション終了時の外部コールバック
 
-
-
+        // AI状態関連のパラメータを config から取得
+        this.moveSpeed = this.config.MOVE_SPEED;
+        this.idleDurationMin = this.config.IDLE_DURATION_MIN;
+        this.idleDurationMax = this.config.IDLE_DURATION_MAX;
+        this.runDurationMin = this.config.RUN_DURATION_MIN;
+        this.runDurationMax = this.config.RUN_DURATION_MAX;
+        this.turnChance = this.config.TURN_CHANCE;
+        this.turnSpeed = this.config.TURN_SPEED;
+        this.maxConsecutiveStraights = this.config.MAX_CONSECUTIVE_STRAIGHTS;
 
         // AI状態関連
         this.aiState = 'idle'; // 初期状態はアイドル
         this.stateTimer = 0;   // 現在の状態の経過時間
-        this.currentIdleDuration = this._getRandomDuration(ENEMY_001_IDLE_DURATION_MIN, ENEMY_001_IDLE_DURATION_MAX);
-        this.currentRunDuration = this._getRandomDuration(ENEMY_001_RUN_DURATION_MIN, ENEMY_001_RUN_DURATION_MAX);
-        this.moveSpeed = ENEMY_001_MOVE_SPEED;
+        this.currentIdleDuration = this._getRandomDuration(this.idleDurationMin, this.idleDurationMax); // 変更
+        this.currentRunDuration = this._getRandomDuration(this.runDurationMin, this.runDurationMax);   // 変更
 
         // 移動方向と旋回に関する状態
         this.targetRotationY = 0; // 目標のY軸回転 (ラジアン)
@@ -225,7 +219,7 @@ export class Enemy {
             while (angleToTurn > Math.PI) angleToTurn -= Math.PI * 2;
             while (angleToTurn < -Math.PI) angleToTurn += Math.PI * 2;
 
-            const turnAmount = ENEMY_001_TURN_SPEED * delta * Math.sign(angleToTurn);
+            const turnAmount = this.turnSpeed * delta * Math.sign(angleToTurn);
 
             if (Math.abs(angleToTurn) > Math.abs(turnAmount)) {
                 this.model.rotation.y += turnAmount;
@@ -268,7 +262,7 @@ export class Enemy {
                 // } else { ... }
 
                 // 現在はランダムに旋回するか直進するかを決める
-                if (this.consecutiveStraights >= ENEMY_001_MAX_CONSECUTIVE_STRAIGHTS || Math.random() < ENEMY_001_TURN_CHANCE) {
+                if (this.consecutiveStraights >= this.maxConsecutiveStraights || Math.random() < this.turnChance) {
                     // 新しいランダムな目標回転を設定 (現在の向き以外)
                     let newTargetY;
                     do {
@@ -283,7 +277,7 @@ export class Enemy {
                     this.consecutiveStraights++;
                 }
                 this.aiState = 'running'; // 旋回するか直進するかの準備完了、次はrunning状態へ
-                this.currentRunDuration = this._getRandomDuration(ENEMY_001_RUN_DURATION_MIN, ENEMY_001_RUN_DURATION_MAX);
+                this.currentRunDuration = this._getRandomDuration(this.runDurationMin, this.runDurationMax);
                 this.stateTimer = 0; // running状態のタイマーリセット
                 if (this.currentActionName !== 'run') { // 旋回しない場合でもrunアニメーションに
                     this.switchAnimation('run');
@@ -309,7 +303,7 @@ export class Enemy {
 
                 if (this.stateTimer >= this.currentRunDuration) {
                     this.aiState = 'idle'; // アイドルに戻る
-                    this.currentIdleDuration = this._getRandomDuration(ENEMY_001_IDLE_DURATION_MIN, ENEMY_001_IDLE_DURATION_MAX);
+                    this.currentIdleDuration = this._getRandomDuration(this.idleDurationMin, this.idleDurationMax);
                     this.stateTimer = 0;
                 }
                 break;

@@ -41,8 +41,11 @@ import { // 定数をインポート
     // Enemy_001関連の定数をインポート (AssetLoaderが使用するパスとスケール)
     ENEMY_001_MODEL_PATH, ENEMY_001_ANIMATIONS, ENEMY_001_SCALE,
     ENEMY_001_SPAWN_SETTINGS, // Enemy_001の初期数を取得するため
-    // スコア関連の定数
     SPHERE_SCORE, RAMIEL_SCORE, ENEMY_001_SCORE,
+
+    // Enemy_002 関連の定数をインポート
+    ENEMY_002_MODEL_PATH, ENEMY_002_ANIMATIONS, ENEMY_002_SCALE,
+    ENEMY_002_SPAWN_SETTINGS, ENEMY_002_SCORE, // 必要に応じて他の ENEMY_002 定数も
 
     // キャラクターパワーアップスコア定数をインポート
     CHARACTER_POWERUP_LEVEL_1_SCORE,
@@ -93,6 +96,7 @@ class Game {
         this.spheresRemainingElement = document.getElementById('spheres-remaining');
         this.ramielsRemainingElement = document.getElementById('ramiels-remaining');
         this.enemies001RemainingElement = document.getElementById('enemies-001-remaining');
+        this.enemies002RemainingElement = document.getElementById('enemies-002-remaining');
         // (他の敵タイプの残り数要素も将来追加する場合はここに追加)
 
         // --- ゲーム内ステータス ---
@@ -100,9 +104,14 @@ class Game {
         this.initialSpheres = 0; // 初期数を保持
         this.initialRamiels = 0;
         this.initialEnemies001 = 0;
+
+        this.initialEnemies002 = 0;
+
         this.spheresRemaining = 0;
         this.ramielsRemaining = 0;
         this.enemies001Remaining = 0;
+
+        this.enemies002Remaining = 0;
         // (他の敵タイプの残り数も将来追加する場合はここに追加)
 
         // キャラクターパワーアップ関連のプロパティ
@@ -171,6 +180,17 @@ class Game {
                 this.initialEnemies001 = 0; // ここではFIXEDのみ考慮
             }
             this.enemies001Remaining = this.initialEnemies001;
+
+            // Enemy_002 の初期数を設定
+            if (ENEMY_002_SPAWN_SETTINGS.METHOD === 'FIXED') {
+                this.initialEnemies002 = Math.min(ENEMY_002_SPAWN_SETTINGS.NUM_INSTANCES, ENEMY_002_SPAWN_SETTINGS.INITIAL_POSITIONS.length);
+            } else {
+                this.initialEnemies002 = 0;
+            }
+            this.enemies002Remaining = this.initialEnemies002;
+
+
+
             this.updateGameStatusUI(); // UIを初期状態に更新
 
             // --- ボリュームスライダー等のUI設定 ---
@@ -322,6 +342,12 @@ class Game {
             ENEMY_001_MODEL_PATH: ENEMY_001_MODEL_PATH,
             ENEMY_001_ANIMATIONS: ENEMY_001_ANIMATIONS,
             ENEMY_001_SCALE: ENEMY_001_SCALE,
+
+            // Enemy_002 のアセットパスを追加
+            ENEMY_002_MODEL_PATH: ENEMY_002_MODEL_PATH,
+            ENEMY_002_ANIMATIONS: ENEMY_002_ANIMATIONS,
+            ENEMY_002_SCALE: ENEMY_002_SCALE,
+
         };
         const loadedAssets = await this.assetLoader.loadAll(pathsToLoad);
 
@@ -375,6 +401,7 @@ class Game {
             try {
                 await this.enemyManager.initEnemyAssets(loadedAssets);
                 this.enemyManager.createEnemiesOfType('enemy_001');
+                this.enemyManager.createEnemiesOfType('enemy_002');
             } catch (error) {
                 console.error("Game: Error during enemy setup in _loadAssetsAndSetupGame:", error);
                 if (this.loadingMessageElement) {
@@ -427,6 +454,9 @@ class Game {
         if (this.enemies001RemainingElement) {
             this.enemies001RemainingElement.textContent = this.enemies001Remaining.toString();
         }
+        if (this.enemies002RemainingElement) {
+            this.enemies002RemainingElement.textContent = this.enemies002Remaining.toString();
+        }
         // (他の敵タイプのUI更新も将来追加する場合はここに追加)
     }
 
@@ -444,8 +474,13 @@ class Game {
             case 'enemy_001': // Enemyクラスのconfig.KEYと一致させる
                 if (this.enemies001Remaining > 0) this.enemies001Remaining--;
                 break;
+
+            case 'enemy_002': // EnemyManager の getEnemyTypeConfig で設定した KEY と一致させる
+                if (this.enemies002Remaining > 0) this.enemies002Remaining--;
+                break;
             // 他の敵タイプが増えたら case を追加
         }
+
         this.updateGameStatusUI();
         // console.log(`Object type '${objectType}' destroyed. Score: ${this.totalScore}`);
 
@@ -643,7 +678,14 @@ class Game {
                     if (this.effectManager && hitObject.material) {
                         this.effectManager.createSparkExplosion(hitPoint.clone(), new THREE.Color(0xffaa00));
                     }
-                    if (wasDamaged && ENEMY_GENERIC_AT_FIELD_ENABLED && this.effectManager && this.character && this.character.model) {
+
+                    // ▼▼▼ ATフィールドエフェクト生成条件を変更 ▼▼▼
+                    if (wasDamaged &&
+                        ENEMY_GENERIC_AT_FIELD_ENABLED && // 全体のマスターフラグ (オプション)
+                        enemy.config.USE_GENERIC_AT_FIELD && // 敵ごとのフラグ
+                        this.effectManager &&
+                        this.character && this.character.model) {
+                    // ▲▲▲ ATフィールドエフェクト生成条件を変更 ▲▲▲
                         const enemyPos = enemy.model.position.clone();
                         const effectRadius = enemy.config.RADIUS * ENEMY_GENERIC_AT_FIELD_RADIUS_FACTOR;
                         let dirFromPlayer = enemyPos.clone().sub(this.character.model.position);

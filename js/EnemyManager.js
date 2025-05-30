@@ -19,6 +19,28 @@ import {
     ENEMY_001_MODEL_PATH,
     ENEMY_001_ANIMATIONS,
     ENEMY_001_SCORE, // スコア
+
+    ENEMY_001_MOVE_SPEED,
+    ENEMY_001_IDLE_DURATION_MIN,
+    ENEMY_001_IDLE_DURATION_MAX,
+    ENEMY_001_RUN_DURATION_MIN,
+    ENEMY_001_RUN_DURATION_MAX,
+    ENEMY_001_TURN_CHANCE,
+    ENEMY_001_TURN_SPEED,
+    ENEMY_001_MAX_CONSECUTIVE_STRAIGHTS,
+    ENEMY_001_USE_GENERIC_AT_FIELD,
+    
+    // Enemy_002 の基本設定
+    ENEMY_002_SCALE, ENEMY_002_HEIGHT, ENEMY_002_RADIUS, ENEMY_002_MASS,
+    ENEMY_002_FRICTION, ENEMY_002_RESTITUTION, ENEMY_002_HP, ENEMY_002_ATTACK_DAMAGE,
+    ENEMY_002_LOCAL_FORWARD, ENEMY_002_SPAWN_SETTINGS, ENEMY_002_SCORE,
+
+    // Enemy_002 の AI パラメータ
+    ENEMY_002_MOVE_SPEED, ENEMY_002_IDLE_DURATION_MIN, ENEMY_002_IDLE_DURATION_MAX,
+    ENEMY_002_RUN_DURATION_MIN, ENEMY_002_RUN_DURATION_MAX, ENEMY_002_TURN_CHANCE,
+    ENEMY_002_TURN_SPEED, ENEMY_002_MAX_CONSECUTIVE_STRAIGHTS,
+    ENEMY_002_USE_GENERIC_AT_FIELD,
+
 } from './constants.js';
 
 export class EnemyManager {
@@ -57,9 +79,20 @@ export class EnemyManager {
             console.error(`EnemyManager: Assets for '${enemyKey}' (model or base structure) not found in allLoadedAssets.enemies. Cannot initialize ${enemyKey} assets.`);
         }
 
-        // 将来的に enemy_002 などが増えた場合、同様にアセットを登録する処理を追加
-        // const enemyKey002 = 'enemy_002';
-        // if (allLoadedAssets.enemies && allLoadedAssets.enemies[enemyKey002] && ...) { ... }
+        // enemy_002' のアセットを登録
+        const enemyKey002 = 'enemy_002';
+        if (allLoadedAssets.enemies && allLoadedAssets.enemies[enemyKey002] && allLoadedAssets.enemies[enemyKey002].model) {
+            const enemyAssetData002 = allLoadedAssets.enemies[enemyKey002];
+            this.loadedEnemyAssets[enemyKey002] = {
+                modelPrototype: enemyAssetData002.model,
+                animations: enemyAssetData002.animations || {}
+            };
+            // console.log(`EnemyManager: Assets for '${enemyKey002}' registered.`);
+        } else {
+            // アセットが見つからない場合でもエラーで停止させず、警告に留めることも検討できます
+            console.warn(`EnemyManager: Assets for '${enemyKey002}' not found in allLoadedAssets.enemies. ${enemyKey002} will not be created if its assets are missing.`);
+        }
+
     }
 
 
@@ -86,13 +119,52 @@ export class EnemyManager {
                 HP: ENEMY_001_HP,
                 ATTACK_DAMAGE: ENEMY_001_ATTACK_DAMAGE,
 
-                SCORE: ENEMY_001_SCORE, // ★★★ スコア情報を追加 ★★★
+                SCORE: ENEMY_001_SCORE, // スコア情報を追加
                 LOCAL_FORWARD: ENEMY_001_LOCAL_FORWARD,
-                // 注意: Enemyクラスが必要とする他のパラメータがあればここに追加
+
+                // Enemyクラスが必要とする他のパラメータがあればここに追加
+                MOVE_SPEED: ENEMY_001_MOVE_SPEED,
+                IDLE_DURATION_MIN: ENEMY_001_IDLE_DURATION_MIN,
+                IDLE_DURATION_MAX: ENEMY_001_IDLE_DURATION_MAX,
+                RUN_DURATION_MIN: ENEMY_001_RUN_DURATION_MIN,
+                RUN_DURATION_MAX: ENEMY_001_RUN_DURATION_MAX,
+                TURN_CHANCE: ENEMY_001_TURN_CHANCE,
+                TURN_SPEED: ENEMY_001_TURN_SPEED,
+                MAX_CONSECUTIVE_STRAIGHTS: ENEMY_001_MAX_CONSECUTIVE_STRAIGHTS,
+                USE_GENERIC_AT_FIELD: ENEMY_001_USE_GENERIC_AT_FIELD,
+
             };
         }
         // 将来的に enemy_002 などが増えた場合、ここに追加
         // else if (enemyKey === 'enemy_002') { return { ... ENEMY_002_CONFIG_FROM_CONSTANTS ... }; }
+        // enemy_002' のコンフィグを追加
+        else if (enemyKey === 'enemy_002') {
+            return {
+                KEY: 'enemy_002',
+                SPAWN_SETTINGS: ENEMY_002_SPAWN_SETTINGS,
+                SCALE: ENEMY_002_SCALE,
+                HEIGHT: ENEMY_002_HEIGHT,
+                RADIUS: ENEMY_002_RADIUS,
+                MASS: ENEMY_002_MASS,
+                FRICTION: ENEMY_002_FRICTION,
+                RESTITUTION: ENEMY_002_RESTITUTION,
+                HP: ENEMY_002_HP,
+                ATTACK_DAMAGE: ENEMY_002_ATTACK_DAMAGE,
+                SCORE: ENEMY_002_SCORE,
+                LOCAL_FORWARD: ENEMY_002_LOCAL_FORWARD,
+                // AI パラメータ (Enemy.js が config から参照するキー名に合わせる)
+                MOVE_SPEED: ENEMY_002_MOVE_SPEED,
+                IDLE_DURATION_MIN: ENEMY_002_IDLE_DURATION_MIN,
+                IDLE_DURATION_MAX: ENEMY_002_IDLE_DURATION_MAX,
+                RUN_DURATION_MIN: ENEMY_002_RUN_DURATION_MIN,
+                RUN_DURATION_MAX: ENEMY_002_RUN_DURATION_MAX,
+                TURN_CHANCE: ENEMY_002_TURN_CHANCE,
+                TURN_SPEED: ENEMY_002_TURN_SPEED,
+                MAX_CONSECUTIVE_STRAIGHTS: ENEMY_002_MAX_CONSECUTIVE_STRAIGHTS,
+                USE_GENERIC_AT_FIELD: ENEMY_002_USE_GENERIC_AT_FIELD,
+
+            };
+        }
 
         console.error(`EnemyManager: Config for unknown enemy type "${enemyKey}" requested.`);
         return null;
